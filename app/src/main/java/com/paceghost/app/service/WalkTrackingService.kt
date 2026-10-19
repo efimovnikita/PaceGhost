@@ -52,11 +52,13 @@ class WalkTrackingService : Service() {
         const val ACTION_STOP = "com.paceghost.app.action.STOP"
         const val ACTION_SET_DEMO_SPEED = "com.paceghost.app.action.SET_DEMO_SPEED"
         const val ACTION_SET_DEMO_OFF_ROUTE = "com.paceghost.app.action.SET_DEMO_OFF_ROUTE"
+        const val ACTION_TOGGLE_VOICE = "com.paceghost.app.action.TOGGLE_VOICE"
 
         const val EXTRA_GHOST_WALK_ID = "extra_ghost_walk_id"
         const val EXTRA_IS_DEMO_MODE = "extra_is_demo_mode"
         const val EXTRA_SPEED_KMH = "extra_speed_kmh"
         const val EXTRA_IS_OFF_ROUTE = "extra_is_off_route"
+        const val EXTRA_IS_VOICE_ENABLED = "extra_is_voice_enabled"
     }
 
     inner class LocalBinder : Binder() {
@@ -67,6 +69,9 @@ class WalkTrackingService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     lateinit var vibrationManager: VibrationManager
+        private set
+
+    lateinit var voiceGuidanceManager: VoiceGuidanceManager
         private set
 
     lateinit var stepSensorManager: StepSensorManager
@@ -88,6 +93,7 @@ class WalkTrackingService : Service() {
     private var tickerJob: Job? = null
     private var demoJob: Job? = null
     private var vibrationObservationJob: Job? = null
+    private var voiceObservationJob: Job? = null
     private var lastRecordedLocation: Location? = null
     private var isLocationUpdatesActive = false
 
@@ -101,6 +107,7 @@ class WalkTrackingService : Service() {
     override fun onCreate() {
         super.onCreate()
         vibrationManager = VibrationManager(applicationContext, serviceScope)
+        voiceGuidanceManager = VoiceGuidanceManager(applicationContext, serviceScope)
         stepSensorManager = StepSensorManager(applicationContext)
         notificationHelper = NotificationHelper(applicationContext)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -109,6 +116,7 @@ class WalkTrackingService : Service() {
         repository = WalkRepositoryImpl(db.walkDao())
 
         observeHapticFeedback()
+        observeVoiceGuidance()
         observeStepSensor()
     }
 
@@ -132,6 +140,15 @@ class WalkTrackingService : Service() {
                 val offRoute = intent.getBooleanExtra(EXTRA_IS_OFF_ROUTE, false)
                 setDemoOffRoute(offRoute)
             }
+            ACTION_TOGGLE_VOICE -> {
+                val hasExplicit = intent.hasExtra(EXTRA_IS_VOICE_ENABLED)
+                if (hasExplicit) {
+                    val enabled = intent.getBooleanExtra(EXTRA_IS_VOICE_ENABLED, true)
+                    setVoiceGuidanceEnabled(enabled)
+                } else {
+                    toggleVoiceGuidance()
+                }
+            }
         }
         return START_NOT_STICKY
     }
@@ -144,7 +161,8 @@ class WalkTrackingService : Service() {
             isTracking = true,
             isPaused = false,
             isAutoPaused = false,
-            isDemoMode = isDemo
+            isDemoMode = isDemo,
+            isVoiceGuidanceEnabled = voiceGuidanceManager.isVoiceEnabled
         )
 
         promoteToForeground()
@@ -343,7 +361,7 @@ class WalkTrackingService : Service() {
             currentState.ghostComparison
         }
 
-        checkAndTriggerVibration(ghostResult)
+        checkAndTriggerFeedback(ghostResult)
 
         _walkState.value = currentState.copy(
             isAutoPaused = isAutoPaused,
@@ -403,7 +421,7 @@ class WalkTrackingService : Service() {
             currentState.ghostComparison
         }
 
-        checkAndTriggerVibration(ghostResult)
+        checkAndTriggerFeedback(ghostResult)
 
         _walkState.value = currentState.copy(
             isAutoPaused = isAutoPaused,
@@ -414,11 +432,36 @@ class WalkTrackingService : Service() {
         )
     }
 
-    private fun checkAndTriggerVibration(result: GhostComparisonResult) {
+    fun setVoiceGuidanceEnabled(enabled: Boolean) {
+        voiceGuidanceManager.isVoiceEnabled = enabled
+        _walkState.value = _walkState.value.copy(isVoiceGuidanceEnabled = enabled)
+    }
+
+    fun toggleVoiceGuidance(): Boolean {
+        val newEnabled = !_walkState.value.isVoiceGuidanceEnabled
+        setVoiceGuidanceEnabled(newEnabled)
+        return newEnabled
+    }
+
+    private fun checkAndTriggerFeedback(result: GhostComparisonResult) {
+        // 1. Vibration
         if (result.shouldVibrateBehind) {
             vibrationManager.vibrateBehind()
         } else if (result.shouldVibrateOvertake) {
             vibrationManager.vibrateOvertake()
+        }
+
+        // 2. Voice Guidance
+        if (voiceGuidanceManager.isVoiceEnabled) {
+            if (result.shouldSpeakBehind) {
+                voiceGuidanceManager.speakBehind()
+            } else if (result.shouldSpeakOvertake) {
+                voiceGuidanceManager.speakOvertake()
+            } else if (result.shouldSpeakAheadReminder) {
+                voiceGuidanceManager.speakAheadReminder()
+            } else if (result.shouldSpeakOffRoute) {
+                voiceGuidanceManager.speakOffRoute()
+            }
         }
     }
 
@@ -432,6 +475,22 @@ class WalkTrackingService : Service() {
                     delay(3500L)
                     if (_walkState.value.recentVibrationMessage == message) {
                         _walkState.value = _walkState.value.copy(recentVibrationMessage = null)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun observeVoiceGuidance() {
+        voiceObservationJob?.cancel()
+        voiceObservationJob = serviceScope.launch {
+            voiceGuidanceManager.voiceEvents.collect { message ->
+                _walkState.value = _walkState.value.copy(recentVoiceMessage = message)
+                // Clear message after 3.5 seconds
+                launch {
+                    delay(3500L)
+                    if (_walkState.value.recentVoiceMessage == message) {
+                        _walkState.value = _walkState.value.copy(recentVoiceMessage = null)
                     }
                 }
             }
@@ -472,7 +531,9 @@ class WalkTrackingService : Service() {
         tickerJob?.cancel()
         demoJob?.cancel()
         vibrationObservationJob?.cancel()
+        voiceObservationJob?.cancel()
         stopRealMode()
+        voiceGuidanceManager.shutdown()
         serviceScope.cancel()
     }
 }

@@ -5,6 +5,7 @@ data class WalkState(
     val isPaused: Boolean = false,
     val isAutoPaused: Boolean = false,
     val isDemoMode: Boolean = false,
+    val isVoiceGuidanceEnabled: Boolean = true,
     val elapsedSeconds: Long = 0L,
     val distanceMeters: Double = 0.0,
     val stepCount: Int = 0,
@@ -13,5 +14,6 @@ data class WalkState(
     val ghostComparison: GhostComparisonResult = GhostComparisonResult.NO_GHOST,
     val currentPoints: List<TrackPoint> = emptyList(),
     val ghostPoints: List<TrackPoint> = emptyList(),
-    val recentVibrationMessage: String? = null
+    val recentVibrationMessage: String? = null,
+    val recentVoiceMessage: String? = null
 )

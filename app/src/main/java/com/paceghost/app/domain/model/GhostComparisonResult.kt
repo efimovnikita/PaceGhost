@@ -9,7 +9,11 @@ data class GhostComparisonResult(
     val ghostLat: Double?,
     val ghostLon: Double?,
     val shouldVibrateBehind: Boolean = false,
-    val shouldVibrateOvertake: Boolean = false
+    val shouldVibrateOvertake: Boolean = false,
+    val shouldSpeakBehind: Boolean = false,
+    val shouldSpeakOvertake: Boolean = false,
+    val shouldSpeakAheadReminder: Boolean = false,
+    val shouldSpeakOffRoute: Boolean = false
 ) {
     companion object {
         val NO_GHOST = GhostComparisonResult(
@@ -21,7 +25,11 @@ data class GhostComparisonResult(
             ghostLat = null,
             ghostLon = null,
             shouldVibrateBehind = false,
-            shouldVibrateOvertake = false
+            shouldVibrateOvertake = false,
+            shouldSpeakBehind = false,
+            shouldSpeakOvertake = false,
+            shouldSpeakAheadReminder = false,
+            shouldSpeakOffRoute = false
         )
     }
 }

@@ -89,6 +89,10 @@ class ActiveWalkViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    fun toggleVoiceGuidance() {
+        trackingService?.toggleVoiceGuidance()
+    }
+
     fun requestFinish() {
         // Pause while reviewing summary
         trackingService?.pauseTracking()

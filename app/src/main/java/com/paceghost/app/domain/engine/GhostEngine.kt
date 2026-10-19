@@ -14,11 +14,16 @@ class GhostEngine(
         const val BEHIND_TIME_THRESHOLD_SECONDS = 30L
         const val AHEAD_TIME_THRESHOLD_SECONDS = -15L
         const val BEHIND_VIBRATION_COOLDOWN_SECONDS = 60L
+        const val BEHIND_VOICE_COOLDOWN_SECONDS = 60L
+        const val AHEAD_REMINDER_COOLDOWN_SECONDS = 180L
     }
 
     private var route: List<TrackPoint> = prepareRoute(ghostRoute)
     private var lastMatchedSegmentIndex: Int = 0
     private var lastBehindVibrationElapsedSeconds: Long = -1000L
+    private var lastBehindVoiceElapsedSeconds: Long = -1000L
+    private var lastAheadVoiceElapsedSeconds: Long = -1000L
+    private var hasSpokenOffRoute: Boolean = false
     private var previousStatus: GhostStatus = GhostStatus.NO_GHOST
     private var wasBehind: Boolean = false
 
@@ -32,6 +37,9 @@ class GhostEngine(
     fun reset() {
         lastMatchedSegmentIndex = 0
         lastBehindVibrationElapsedSeconds = -1000L
+        lastBehindVoiceElapsedSeconds = -1000L
+        lastAheadVoiceElapsedSeconds = -1000L
+        hasSpokenOffRoute = false
         previousStatus = GhostStatus.NO_GHOST
         wasBehind = false
     }
@@ -68,7 +76,16 @@ class GhostEngine(
 
         if (route.size == 1) {
             val dist = GeoMath.haversineDistance(userLat, userLon, route[0].lat, route[0].lon)
-            val status = if (dist > OFF_ROUTE_THRESHOLD_METERS) GhostStatus.OFF_ROUTE else GhostStatus.ON_PACE
+            val isOff = dist > OFF_ROUTE_THRESHOLD_METERS
+            val status = if (isOff) GhostStatus.OFF_ROUTE else GhostStatus.ON_PACE
+            val speakOff = if (isOff) {
+                val should = !hasSpokenOffRoute
+                hasSpokenOffRoute = true
+                should
+            } else {
+                hasSpokenOffRoute = false
+                false
+            }
             return GhostComparisonResult(
                 status = status,
                 timeDeltaSeconds = 0L,
@@ -76,7 +93,8 @@ class GhostEngine(
                 currentProgressMeters = 0.0,
                 totalGhostMeters = totalGhostMeters,
                 ghostLat = route[0].lat,
-                ghostLon = route[0].lon
+                ghostLon = route[0].lon,
+                shouldSpeakOffRoute = speakOff
             )
         }
 
@@ -116,6 +134,8 @@ class GhostEngine(
 
         // 2. Off route check
         if (minCrossTrackDist > OFF_ROUTE_THRESHOLD_METERS || bestProjectedPoint == null) {
+            val shouldSpeakOff = !hasSpokenOffRoute
+            hasSpokenOffRoute = true
             previousStatus = GhostStatus.OFF_ROUTE
             wasBehind = false
             return GhostComparisonResult(
@@ -127,10 +147,16 @@ class GhostEngine(
                 ghostLat = ghostAtTime.lat,
                 ghostLon = ghostAtTime.lon,
                 shouldVibrateBehind = false,
-                shouldVibrateOvertake = false
+                shouldVibrateOvertake = false,
+                shouldSpeakBehind = false,
+                shouldSpeakOvertake = false,
+                shouldSpeakAheadReminder = false,
+                shouldSpeakOffRoute = shouldSpeakOff
             )
         }
 
+        // User is back on route: reset off-route spoken flag
+        hasSpokenOffRoute = false
         lastMatchedSegmentIndex = bestSegmentIndex
 
         // 3. Interpolate ghost elapsed seconds at current distance D_curr
@@ -152,6 +178,9 @@ class GhostEngine(
         // 7. Trigger flags
         var shouldVibrateBehind = false
         var shouldVibrateOvertake = false
+        var shouldSpeakBehind = false
+        var shouldSpeakOvertake = false
+        var shouldSpeakAheadReminder = false
 
         if (status == GhostStatus.BEHIND) {
             if (lastBehindVibrationElapsedSeconds < 0L ||
@@ -160,11 +189,30 @@ class GhostEngine(
                 shouldVibrateBehind = true
                 lastBehindVibrationElapsedSeconds = elapsedSeconds
             }
+            if (lastBehindVoiceElapsedSeconds < 0L ||
+                (elapsedSeconds - lastBehindVoiceElapsedSeconds >= BEHIND_VOICE_COOLDOWN_SECONDS)
+            ) {
+                shouldSpeakBehind = true
+                lastBehindVoiceElapsedSeconds = elapsedSeconds
+            }
             wasBehind = true
         } else if (status == GhostStatus.AHEAD) {
-            if (wasBehind || previousStatus == GhostStatus.BEHIND) {
+            val isOvertake = wasBehind || previousStatus == GhostStatus.BEHIND || previousStatus == GhostStatus.ON_PACE
+            if (isOvertake) {
                 shouldVibrateOvertake = true
+                shouldSpeakOvertake = true
+                lastAheadVoiceElapsedSeconds = elapsedSeconds
+            } else {
+                if (lastAheadVoiceElapsedSeconds >= 0L &&
+                    (elapsedSeconds - lastAheadVoiceElapsedSeconds >= AHEAD_REMINDER_COOLDOWN_SECONDS)
+                ) {
+                    shouldSpeakAheadReminder = true
+                    lastAheadVoiceElapsedSeconds = elapsedSeconds
+                }
             }
+            wasBehind = false
+        } else {
+            // ON_PACE: Silence
             wasBehind = false
         }
 
@@ -179,7 +227,11 @@ class GhostEngine(
             ghostLat = ghostAtTime.lat,
             ghostLon = ghostAtTime.lon,
             shouldVibrateBehind = shouldVibrateBehind,
-            shouldVibrateOvertake = shouldVibrateOvertake
+            shouldVibrateOvertake = shouldVibrateOvertake,
+            shouldSpeakBehind = shouldSpeakBehind,
+            shouldSpeakOvertake = shouldSpeakOvertake,
+            shouldSpeakAheadReminder = shouldSpeakAheadReminder,
+            shouldSpeakOffRoute = false
         )
     }
 

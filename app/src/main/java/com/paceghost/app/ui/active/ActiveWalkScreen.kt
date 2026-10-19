@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +47,7 @@ import com.paceghost.app.ui.theme.CyanGhost
 import com.paceghost.app.ui.theme.DarkBackground
 import com.paceghost.app.ui.theme.DarkSurfaceVariant
 import com.paceghost.app.ui.theme.NeonGreenRunner
+import com.paceghost.app.ui.theme.TextDisabled
 import com.paceghost.app.ui.theme.TextPrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -138,6 +141,21 @@ fun ActiveWalkScreen(
                         )
                     }
                 },
+                actions = {
+                    IconButton(
+                        onClick = { viewModel.toggleVoiceGuidance() }
+                    ) {
+                        Icon(
+                            imageVector = if (walkState.isVoiceGuidanceEnabled) {
+                                Icons.AutoMirrored.Filled.VolumeUp
+                            } else {
+                                Icons.AutoMirrored.Filled.VolumeOff
+                            },
+                            contentDescription = if (walkState.isVoiceGuidanceEnabled) "Отключить голосовые подсказки" else "Включить голосовые подсказки",
+                            tint = if (walkState.isVoiceGuidanceEnabled) CyanGhost else TextDisabled
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = DarkBackground.copy(alpha = 0.85f)
                 )
@@ -158,9 +176,10 @@ fun ActiveWalkScreen(
                 )
             }
 
-            // Haptic feedback badge
+            // Voice & Haptic feedback badge
             HapticBadge(
                 message = walkState.recentVibrationMessage,
+                voiceMessage = walkState.recentVoiceMessage,
                 modifier = Modifier
                     .padding(horizontal = 16.dp, vertical = 6.dp)
                     .align(Alignment.CenterHorizontally)

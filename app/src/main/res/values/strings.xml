@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PaceGhost</string>
+    <string name="voice_behind">Прибавьте шаг, отстаёте от призрака</string>
+    <string name="voice_overtake">Отличный темп, призрак позади!</string>
+    <string name="voice_ahead_reminder">Темп высокий, так держать!</string>
+    <string name="voice_off_route">Вы сошли с маршрута</string>
 </resources>
