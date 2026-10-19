@@ -87,6 +87,7 @@ fun WalkCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = formattedDate,
                     style = MaterialTheme.typography.labelSmall,
@@ -150,7 +151,7 @@ fun WalkCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Вызов призраку",
+                        text = "Идти с призраком",
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp
                     )
