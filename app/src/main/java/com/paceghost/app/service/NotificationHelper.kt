@@ -16,7 +16,7 @@ class NotificationHelper(private val context: Context) {
 
     companion object {
         const val CHANNEL_ID = "walk_tracking_channel"
-        const val CHANNEL_NAME = "Трекинг прогулки PaceGhost"
+        const val CHANNEL_NAME = "PaceGhost Walk Tracking"
         const val NOTIFICATION_ID = 1001
     }
 
@@ -34,7 +34,7 @@ class NotificationHelper(private val context: Context) {
                 CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Уведомления о текущей прогулке и сравнении с призраком"
+                description = "Notifications about ongoing walk and ghost pacing"
                 setShowBadge(false)
                 enableVibration(false)
             }
@@ -63,11 +63,11 @@ class NotificationHelper(private val context: Context) {
         val distText = PaceCalculator.formatDistance(distanceMeters)
         val paceText = PaceCalculator.formatPace(paceSecondsPerKm)
         val title = when {
-            isPaused -> "PaceGhost: Пауза"
-            isDemo -> "PaceGhost: Демо-прогулка"
-            else -> "PaceGhost: Активная прогулка"
+            isPaused -> "PaceGhost: Paused"
+            isDemo -> "PaceGhost: Demo Walk"
+            else -> "PaceGhost: Active Walk"
         }
-        val content = "🚶 $steps шагов • $distText • $paceText"
+        val content = "🚶 $steps steps • $distText • $paceText"
 
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)

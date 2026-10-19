@@ -54,7 +54,7 @@ fun WalkSummaryDialog(
 ) {
     val defaultTitle = remember {
         val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
-        "Прогулка ${dateFormat.format(Date())}"
+        "Walk ${dateFormat.format(Date())}"
     }
 
     var title by remember { mutableStateOf(defaultTitle) }
@@ -66,7 +66,7 @@ fun WalkSummaryDialog(
         shape = RoundedCornerShape(24.dp),
         title = {
             Text(
-                text = "Итоги прогулки 🎉",
+                text = "Walk Summary 🎉",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
                     fontSize = 22.sp
@@ -84,7 +84,7 @@ fun WalkSummaryDialog(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Название маршрута") },
+                    label = { Text("Route Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -113,22 +113,22 @@ fun WalkSummaryDialog(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         SummaryRow(
-                            label = "Дистанция",
+                            label = "Distance",
                             value = PaceCalculator.formatDistance(distanceMeters),
                             valueColor = NeonGreenRunner
                         )
                         SummaryRow(
-                            label = "Время",
+                            label = "Time",
                             value = PaceCalculator.formatDuration(durationSeconds),
                             valueColor = TextPrimary
                         )
                         SummaryRow(
-                            label = "Шаги",
+                            label = "Steps",
                             value = "🚶 " + String.format("%,d", stepCount).replace(',', ' '),
                             valueColor = TextPrimary
                         )
                         SummaryRow(
-                            label = "Средний темп",
+                            label = "Avg Pace",
                             value = PaceCalculator.formatPace(averagePaceSecondsPerKm),
                             valueColor = NeonGreenRunner
                         )
@@ -146,7 +146,7 @@ fun WalkSummaryDialog(
                 )
             ) {
                 Text(
-                    text = "Сохранить",
+                    text = "Save",
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -157,7 +157,7 @@ fun WalkSummaryDialog(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.textButtonColors(contentColor = ErrorRed)
             ) {
-                Text("Сбросить")
+                Text("Discard")
             }
         }
     )

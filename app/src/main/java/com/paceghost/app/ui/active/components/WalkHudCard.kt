@@ -88,7 +88,7 @@ fun WalkHudCard(
                 // Pace
                 Column {
                     Text(
-                        text = "ТЕМП",
+                        text = "PACE",
                         style = MaterialTheme.typography.labelSmall,
                         color = TextSecondary,
                         letterSpacing = 1.sp
@@ -106,7 +106,7 @@ fun WalkHudCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "мин/км",
+                            text = "min/km",
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary,
                             modifier = Modifier.padding(bottom = 6.dp)
@@ -117,7 +117,7 @@ fun WalkHudCard(
                 // Steps
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "ШАГИ",
+                        text = "STEPS",
                         style = MaterialTheme.typography.labelSmall,
                         color = TextSecondary,
                         letterSpacing = 1.sp
@@ -154,12 +154,12 @@ fun WalkHudCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Дистанция: ${PaceCalculator.formatDistance(walkState.distanceMeters)}",
+                    text = "Distance: ${PaceCalculator.formatDistance(walkState.distanceMeters)}",
                     style = MaterialTheme.typography.titleMedium,
                     color = TextPrimary
                 )
                 Text(
-                    text = "Время: ${PaceCalculator.formatDuration(walkState.elapsedSeconds)}",
+                    text = "Time: ${PaceCalculator.formatDuration(walkState.elapsedSeconds)}",
                     style = MaterialTheme.typography.titleMedium,
                     color = TextSecondary
                 )
@@ -185,7 +185,7 @@ fun WalkHudCard(
                 ) {
                     Icon(
                         imageVector = if (isPausedOrAuto) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                        contentDescription = if (isPausedOrAuto) "Продолжить" else "Пауза",
+                        contentDescription = if (isPausedOrAuto) "Resume" else "Pause",
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -209,7 +209,7 @@ fun WalkHudCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Завершить",
+                        text = "Finish",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
                 }
@@ -224,45 +224,45 @@ private fun GhostStatusChip(walkState: WalkState) {
 
     val (chipText, chipColor, chipBg) = when {
         walkState.isAutoPaused -> Triple(
-            "🚦 Светофор (Авто-пауза)",
+            "🚦 Traffic Light (Auto-pause)",
             TrafficLightBlue,
             TrafficLightBlue.copy(alpha = 0.15f)
         )
         walkState.isPaused -> Triple(
-            "⏸️ Пауза",
+            "⏸️ Paused",
             TextSecondary,
             DarkSurfaceVariant
         )
         ghost.status == GhostStatus.AHEAD -> {
-            val dist = "+${abs(ghost.distanceDeltaMeters).toInt()} м"
-            val sec = "+${abs(ghost.timeDeltaSeconds)} с"
+            val dist = "+${abs(ghost.distanceDeltaMeters).toInt()} m"
+            val sec = "+${abs(ghost.timeDeltaSeconds)} s"
             Triple(
-                "⚡ $dist / $sec (Впереди)",
+                "⚡ $dist / $sec (Ahead)",
                 NeonGreenRunner,
                 NeonGreenRunner.copy(alpha = 0.15f)
             )
         }
         ghost.status == GhostStatus.BEHIND -> {
-            val dist = "-${abs(ghost.distanceDeltaMeters).toInt()} м"
-            val sec = "-${abs(ghost.timeDeltaSeconds)} с"
+            val dist = "-${abs(ghost.distanceDeltaMeters).toInt()} m"
+            val sec = "-${abs(ghost.timeDeltaSeconds)} s"
             Triple(
-                "⚠️ $dist / $sec (Отставание)",
+                "⚠️ $dist / $sec (Behind)",
                 WarningAmber,
                 WarningAmber.copy(alpha = 0.15f)
             )
         }
         ghost.status == GhostStatus.OFF_ROUTE -> Triple(
-            "↩️ Вне маршрута (>60м)",
+            "↩️ Off-route (>60m)",
             ErrorRed,
             ErrorRed.copy(alpha = 0.15f)
         )
         ghost.status == GhostStatus.ON_PACE -> Triple(
-            "🎯 В темпе призрака",
+            "🎯 On Ghost Pace",
             CyanGhost,
             CyanGhost.copy(alpha = 0.15f)
         )
         else -> Triple(
-            "👻 Свободная прогулка",
+            "👻 Free Walk",
             TextDisabled,
             DarkSurfaceVariant.copy(alpha = 0.6f)
         )

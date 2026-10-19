@@ -101,7 +101,7 @@ fun HomeScreen(
                 }
             } catch (e: Exception) {
                 scope.launch {
-                    snackbarHostState.showSnackbar("Ошибка чтения файла: ${e.message}")
+                    snackbarHostState.showSnackbar("Error reading file: ${e.message}")
                 }
             }
         }
@@ -143,13 +143,13 @@ fun HomeScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Science,
-                            contentDescription = "Демо",
+                            contentDescription = "Demo",
                             tint = if (isDemoMode) CyanGhost else TextSecondary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isDemoMode) "Демо ВКЛ" else "Демо ВЫКЛ",
+                            text = if (isDemoMode) "Demo ON" else "Demo OFF",
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isDemoMode) CyanGhost else TextSecondary
                         )
@@ -175,7 +175,7 @@ fun HomeScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.FileOpen,
-                            contentDescription = "Импорт GPX",
+                            contentDescription = "Import GPX",
                             tint = TextPrimary
                         )
                     }
@@ -186,7 +186,7 @@ fun HomeScreen(
             )
         },
         bottomBar = {
-            // Prominent "Новая прогулка" Button
+            // Prominent "New Walk" Button
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -213,7 +213,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isDemoMode) "Новая прогулка (Демо)" else "Новая прогулка",
+                        text = if (isDemoMode) "New Walk (Demo)" else "New Walk",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 17.sp
@@ -241,7 +241,7 @@ fun HomeScreen(
             ) {
                 item {
                     Text(
-                        text = "Сохранённые маршруты",
+                        text = "Saved Routes",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp
@@ -264,10 +264,10 @@ fun HomeScreen(
                                         putExtra(Intent.EXTRA_TEXT, gpx)
                                         type = "text/xml"
                                     }
-                                    val shareIntent = Intent.createChooser(sendIntent, "Экспорт GPX: ${walk.title}")
+                                    val shareIntent = Intent.createChooser(sendIntent, "Export GPX: ${walk.title}")
                                     context.startActivity(shareIntent)
                                 } else {
-                                    snackbarHostState.showSnackbar("Ошибка экспорта GPX")
+                                    snackbarHostState.showSnackbar("GPX export error")
                                 }
                             }
                         },
@@ -306,13 +306,13 @@ private fun EmptyWalksView(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Нет сохранённых маршрутов",
+                    text = "No Saved Routes",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = TextPrimary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Начните первую прогулку, чтобы записать темп. В следующий раз вы сможете соревноваться со своим призраком!",
+                    text = "Start your first walk to record your pace. Next time you can race against your ghost!",
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary,
                     lineHeight = 22.sp
@@ -332,7 +332,7 @@ private fun EmptyWalksView(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isDemoMode) "Запустить демо" else "Начать прогулку",
+                        text = if (isDemoMode) "Start Demo" else "Start Walk",
                         fontWeight = FontWeight.Bold
                     )
                 }

@@ -49,7 +49,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteWalk(id: Long) {
         viewModelScope.launch {
             repository.deleteWalk(id)
-            _userMessage.emit("Прогулка удалена")
+            _userMessage.emit("Walk deleted")
         }
     }
 
@@ -57,9 +57,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val newId = repository.importWalkFromGpx(content, titleOverride)
-                _userMessage.emit("Маршрут успешно импортирован (ID: $newId)")
+                _userMessage.emit("Route successfully imported (ID: $newId)")
             } catch (e: Exception) {
-                _userMessage.emit("Ошибка импорта GPX: ${e.localizedMessage ?: "Неверный формат"}")
+                _userMessage.emit("GPX import error: ${e.localizedMessage ?: "Invalid format"}")
             }
         }
     }

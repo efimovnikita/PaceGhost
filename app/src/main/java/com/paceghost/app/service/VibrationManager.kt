@@ -35,7 +35,7 @@ class VibrationManager(
      * Triggered when the user falls behind the ghost.
      */
     fun vibrateBehind() {
-        val message = "Отставание: двойная вибрация"
+        val message = "Behind pace: double vibration"
         emitHapticEvent(message)
 
         val vib = vibrator ?: return
@@ -59,7 +59,7 @@ class VibrationManager(
      * Triggered when the user overtakes the ghost.
      */
     fun vibrateOvertake() {
-        val message = "Обгон: победная вибрация"
+        val message = "Overtaking ghost: victory vibration"
         emitHapticEvent(message)
 
         val vib = vibrator ?: return

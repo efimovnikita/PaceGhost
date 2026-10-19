@@ -105,22 +105,22 @@ fun WalkCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 StatItem(
-                    label = "Дистанция",
+                    label = "Distance",
                     value = PaceCalculator.formatDistance(walk.distanceMeters),
                     valueColor = NeonGreenRunner
                 )
                 StatItem(
-                    label = "Время",
+                    label = "Time",
                     value = PaceCalculator.formatDuration(walk.durationSeconds),
                     valueColor = TextPrimary
                 )
                 StatItem(
-                    label = "Шаги",
+                    label = "Steps",
                     value = String.format("%,d", walk.stepCount).replace(',', ' '),
                     valueColor = TextPrimary
                 )
                 StatItem(
-                    label = "Темп",
+                    label = "Pace",
                     value = PaceCalculator.formatPaceMinSec(walk.averagePaceSecondsPerKm),
                     valueColor = CyanGhost
                 )
@@ -151,7 +151,7 @@ fun WalkCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Идти с призраком",
+                        text = "Walk with Ghost",
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp
                     )
@@ -167,7 +167,7 @@ fun WalkCard(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Share,
-                        contentDescription = "Экспорт GPX",
+                        contentDescription = "Export GPX",
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -185,7 +185,7 @@ fun WalkCard(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.DeleteOutline,
-                        contentDescription = "Удалить прогулку",
+                        contentDescription = "Delete walk",
                         modifier = Modifier.size(20.dp)
                     )
                 }

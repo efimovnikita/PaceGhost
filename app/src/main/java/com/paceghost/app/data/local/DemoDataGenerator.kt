@@ -8,7 +8,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 object DemoDataGenerator {
-    const val DEMO_WALK_TITLE = "Тестовый трек: Парк Победы"
+    const val DEMO_WALK_TITLE = "Victory Park Demo Track"
     const val CENTER_LAT = 55.7310
     const val CENTER_LON = 37.5050
     const val POINT_COUNT = 100

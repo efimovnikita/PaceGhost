@@ -76,9 +76,9 @@
 
 ---
 
-## 📱 Скриншоты приложения
+## 📱 Скриншоты приложения (English UI)
 
-| Главный экран | Активная прогулка и карта | Оповещение об отставании | Итоги прогулки |
+| Home Screen | Active Walk & Map | Simulation Controls & Auto-pause | Walk Summary |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/01_home_screen.png" width="220" /> | <img src="docs/screenshots/02_active_walk_map.png" width="220" /> | <img src="docs/screenshots/03_demo_controls_lag_alert.png" width="220" /> | <img src="docs/screenshots/04_walk_summary_dialog.png" width="220" /> |
-| Список треков и Демо-режим | OsmDroid карта с HUD | Расчет отставания и вибро-алерт | Сводка и сохранение прогулки |
+| <img src="docs/screenshots/06_home_screen_en.png" width="220" /> | <img src="docs/screenshots/07_active_walk_en.png" width="220" /> | <img src="docs/screenshots/11_traffic_light_en.png" width="220" /> | <img src="docs/screenshots/09_summary_en.png" width="220" /> |
+| Список маршрутов и Демо-режим | Карта OsmDroid с HUD и призраком | Управление симуляцией и автопауза | Сохранение трека и сводка |

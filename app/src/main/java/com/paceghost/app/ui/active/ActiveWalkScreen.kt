@@ -104,7 +104,7 @@ fun ActiveWalkScreen(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = if (walkState.isDemoMode) "PaceGhost: Демо" else "PaceGhost: Прогулка",
+                            text = if (walkState.isDemoMode) "PaceGhost: Demo" else "PaceGhost: Walk",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
@@ -133,7 +133,7 @@ fun ActiveWalkScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
+                            contentDescription = "Back",
                             tint = TextPrimary
                         )
                     }

@@ -61,14 +61,14 @@ fun DemoControlsOverlay(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "ДЕМО-УПРАВЛЕНИЕ СИМУЛЯЦИЕЙ",
+                    text = "DEMO SIMULATION CONTROLS",
                     style = MaterialTheme.typography.labelSmall,
                     color = CyanGhost,
                     letterSpacing = 1.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = String.format("%.1f км/ч", currentSpeedKmh),
+                    text = String.format("%.1f km/h", currentSpeedKmh),
                     style = MaterialTheme.typography.labelSmall,
                     color = TextSecondary,
                     fontWeight = FontWeight.Medium
@@ -87,7 +87,7 @@ fun DemoControlsOverlay(
                 FilterChip(
                     selected = (currentSpeedKmh in 2.8..3.2),
                     onClick = { onSetSpeed(3.0) },
-                    label = { Text("🐢 3.0 км/ч", fontSize = 12.sp) },
+                    label = { Text("🐢 3.0 km/h", fontSize = 12.sp) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = WarningAmber.copy(alpha = 0.25f),
                         selectedLabelColor = WarningAmber,
@@ -100,7 +100,7 @@ fun DemoControlsOverlay(
                 FilterChip(
                     selected = (currentSpeedKmh in 4.8..5.2),
                     onClick = { onSetSpeed(5.0) },
-                    label = { Text("🚶 5.0 км/ч", fontSize = 12.sp) },
+                    label = { Text("🚶 5.0 km/h", fontSize = 12.sp) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = NeonGreenRunner.copy(alpha = 0.25f),
                         selectedLabelColor = NeonGreenRunner,
@@ -113,7 +113,7 @@ fun DemoControlsOverlay(
                 FilterChip(
                     selected = (currentSpeedKmh in 6.3..6.7),
                     onClick = { onSetSpeed(6.5) },
-                    label = { Text("🏃 6.5 км/ч", fontSize = 12.sp) },
+                    label = { Text("🏃 6.5 km/h", fontSize = 12.sp) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = CyanGhost.copy(alpha = 0.25f),
                         selectedLabelColor = CyanGhost,
@@ -126,7 +126,7 @@ fun DemoControlsOverlay(
                 FilterChip(
                     selected = (currentSpeedKmh == 0.0),
                     onClick = { onSetSpeed(0.0) },
-                    label = { Text("🚦 Светофор", fontSize = 12.sp) },
+                    label = { Text("🚦 Traffic Light", fontSize = 12.sp) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = TrafficLightBlue.copy(alpha = 0.25f),
                         selectedLabelColor = TrafficLightBlue,
@@ -139,7 +139,7 @@ fun DemoControlsOverlay(
                 FilterChip(
                     selected = isOffRoute,
                     onClick = { onToggleOffRoute(!isOffRoute) },
-                    label = { Text("↩️ Свернуть", fontSize = 12.sp) },
+                    label = { Text("↩️ Off-route", fontSize = 12.sp) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = ErrorRed.copy(alpha = 0.25f),
                         selectedLabelColor = ErrorRed,

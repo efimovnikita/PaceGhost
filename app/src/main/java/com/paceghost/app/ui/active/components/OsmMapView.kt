@@ -91,7 +91,7 @@ fun OsmMapView(
                 sizePx = (24 * density).toInt(),
                 strokeWidthPx = (2 * density).toInt()
             )
-            title = "Призрак"
+            title = "Ghost"
             mapView.overlays.add(this)
         }
     }
@@ -105,7 +105,7 @@ fun OsmMapView(
                 sizePx = (26 * density).toInt(),
                 strokeWidthPx = (3 * density).toInt()
             )
-            title = "Вы"
+            title = "You"
             mapView.overlays.add(this)
         }
     }
