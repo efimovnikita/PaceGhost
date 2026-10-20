@@ -43,11 +43,14 @@ class VoiceGuidanceManager(
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             val ttsEngine = tts ?: return
-            val ruLocale = Locale("ru", "RU")
-            val langResult = ttsEngine.setLanguage(ruLocale)
+            val enLocale = Locale.US
+            val langResult = ttsEngine.setLanguage(enLocale)
             if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
-                // Fallback to default system locale
-                ttsEngine.language = Locale.getDefault()
+                val fallbackResult = ttsEngine.setLanguage(Locale.ENGLISH)
+                if (fallbackResult == TextToSpeech.LANG_MISSING_DATA || fallbackResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    // Fallback to default system locale
+                    ttsEngine.language = Locale.getDefault()
+                }
             }
             ttsEngine.setSpeechRate(1.05f)
 

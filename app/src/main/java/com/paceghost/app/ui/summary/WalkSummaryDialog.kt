@@ -50,6 +50,7 @@ fun WalkSummaryDialog(
     averagePaceSecondsPerKm: Double,
     onSave: (title: String) -> Unit,
     onDiscard: () -> Unit,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val defaultTitle = remember {
@@ -58,9 +59,10 @@ fun WalkSummaryDialog(
     }
 
     var title by remember { mutableStateOf(defaultTitle) }
+    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
 
     AlertDialog(
-        onDismissRequest = onDiscard,
+        onDismissRequest = onDismiss,
         modifier = modifier,
         containerColor = DarkSurface,
         shape = RoundedCornerShape(24.dp),
@@ -152,15 +154,70 @@ fun WalkSummaryDialog(
             }
         },
         dismissButton = {
-            TextButton(
-                onClick = onDiscard,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.textButtonColors(contentColor = ErrorRed)
-            ) {
-                Text("Discard")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = TextSecondary)
+                ) {
+                    Text("Cancel")
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                TextButton(
+                    onClick = { showDiscardConfirmDialog = true },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = ErrorRed)
+                ) {
+                    Text("Discard")
+                }
             }
         }
     )
+
+    if (showDiscardConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirmDialog = false },
+            containerColor = DarkSurface,
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Text(
+                    text = "Discard walk?",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "All unsaved track data and statistics from this walk will be permanently discarded.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDiscardConfirmDialog = false
+                        onDiscard()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ErrorRed,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Discard", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDiscardConfirmDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = TextSecondary)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable

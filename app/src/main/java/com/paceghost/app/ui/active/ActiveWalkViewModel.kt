@@ -15,6 +15,8 @@ import com.paceghost.app.data.repository.WalkRepository
 import com.paceghost.app.data.repository.WalkRepositoryImpl
 import com.paceghost.app.domain.model.WalkState
 import com.paceghost.app.service.WalkTrackingService
+import com.paceghost.app.util.AppLogger
+import com.paceghost.app.util.BatteryOptimizationHelper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +36,9 @@ class ActiveWalkViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _showSummaryDialog = MutableStateFlow(false)
     val showSummaryDialog: StateFlow<Boolean> = _showSummaryDialog.asStateFlow()
+
+    private val _showBatteryOptimizationDialog = MutableStateFlow(false)
+    val showBatteryOptimizationDialog: StateFlow<Boolean> = _showBatteryOptimizationDialog.asStateFlow()
 
     private val _navigationEvents = MutableSharedFlow<ActiveWalkNavigationEvent>(extraBufferCapacity = 2)
     val navigationEvents = _navigationEvents.asSharedFlow()
@@ -95,8 +100,35 @@ class ActiveWalkViewModel(application: Application) : AndroidViewModel(applicati
 
     fun requestFinish() {
         // Pause while reviewing summary
+        AppLogger.i("ActiveWalkViewModel", "requestFinish: opening summary dialog")
         trackingService?.pauseTracking()
         _showSummaryDialog.value = true
+    }
+
+    fun dismissSummaryDialog() {
+        AppLogger.i("ActiveWalkViewModel", "dismissSummaryDialog: dismissed dialog, session remains paused")
+        _showSummaryDialog.value = false
+    }
+
+    fun checkBatteryOptimization() {
+        if (BatteryOptimizationHelper.shouldPromptBatteryOptimization(getApplication())) {
+            _showBatteryOptimizationDialog.value = true
+        }
+    }
+
+    fun dismissBatteryOptimizationDialog(dontAskAgain: Boolean) {
+        if (dontAskAgain) {
+            BatteryOptimizationHelper.setDontAskAgain(getApplication())
+        }
+        _showBatteryOptimizationDialog.value = false
+    }
+
+    fun openBatteryOptimizationSettings(dontAskAgain: Boolean) {
+        if (dontAskAgain) {
+            BatteryOptimizationHelper.setDontAskAgain(getApplication())
+        }
+        _showBatteryOptimizationDialog.value = false
+        BatteryOptimizationHelper.openBatteryOptimizationSettings(getApplication())
     }
 
     fun setDemoSpeed(speedKmh: Double) {
@@ -111,6 +143,7 @@ class ActiveWalkViewModel(application: Application) : AndroidViewModel(applicati
     fun saveWalk(title: String) {
         viewModelScope.launch {
             val state = _walkState.value
+            AppLogger.i("ActiveWalkViewModel", "saveWalk: title=$title, points=${state.currentPoints.size}, dist=${state.distanceMeters}m")
             val now = System.currentTimeMillis()
             val startTime = state.currentPoints.firstOrNull()?.timestamp ?: (now - state.elapsedSeconds * 1000L)
 
@@ -129,12 +162,14 @@ class ActiveWalkViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             repository.saveWalk(walkEntity, pointEntities)
+            AppLogger.i("ActiveWalkViewModel", "saveWalk: saved to database successfully")
 
             cleanupAndFinish()
         }
     }
 
     fun discardWalk() {
+        AppLogger.i("ActiveWalkViewModel", "discardWalk: walk discarded by user")
         cleanupAndFinish()
     }
 

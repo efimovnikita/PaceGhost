@@ -158,4 +158,73 @@ class GhostEngineTest {
         assertFalse(r.shouldSpeakAheadReminder)
         assertFalse(r.shouldSpeakOffRoute)
     }
+
+    @Test
+    fun `custom behind voice cooldown is respected`() {
+        // Set cooldown to 15 seconds
+        ghostEngine.behindVoiceCooldownSeconds = 15L
+
+        // 1. First trigger at 150s
+        val r1 = ghostEngine.compare(userLat = 55.7310, userLon = 37.5000, elapsedSeconds = 150)
+        assertEquals(GhostStatus.BEHIND, r1.status)
+        assertTrue(r1.shouldSpeakBehind)
+
+        // 2. 10s later (elapsed 160s < 15s cooldown) -> should NOT speak
+        val r2 = ghostEngine.compare(userLat = 55.7310, userLon = 37.5000, elapsedSeconds = 160)
+        assertFalse(r2.shouldSpeakBehind)
+
+        // 3. 16s after first trigger (elapsed 166s >= 15s cooldown) -> SHOULD speak
+        val r3 = ghostEngine.compare(userLat = 55.7310, userLon = 37.5000, elapsedSeconds = 166)
+        assertTrue(r3.shouldSpeakBehind)
+    }
+
+    @Test
+    fun `ahead voice disabled suppresses overtake voice and ahead reminder while preserving vibration`() {
+        val pt0 = TrackPoint(lat = 55.7300, lon = 37.5000, elapsedSeconds = 0)
+        val pt1 = TrackPoint(lat = 55.7400, lon = 37.5000, elapsedSeconds = 1000)
+        val engine = GhostEngine(
+            ghostRoute = GeoMath.computeCumulativeDistances(listOf(pt0, pt1)),
+            isAheadVoiceEnabled = false
+        )
+
+        // Fall behind first
+        engine.compare(userLat = 55.7300, userLon = 37.5000, elapsedSeconds = 50)
+
+        // Sprint ahead (overtake event)
+        val rOvertake = engine.compare(userLat = 55.7400, userLon = 37.5000, elapsedSeconds = 200)
+        assertEquals(GhostStatus.AHEAD, rOvertake.status)
+        assertTrue("Vibration should still occur on overtake", rOvertake.shouldVibrateOvertake)
+        assertFalse("Voice on overtake should be silenced when isAheadVoiceEnabled is false", rOvertake.shouldSpeakOvertake)
+        assertFalse(rOvertake.shouldSpeakAheadReminder)
+
+        // Long time passes while still ahead (> 180s)
+        val rReminder = engine.compare(userLat = 55.7400, userLon = 37.5000, elapsedSeconds = 500)
+        assertEquals(GhostStatus.AHEAD, rReminder.status)
+        assertFalse("Ahead reminder voice should be silenced", rReminder.shouldSpeakAheadReminder)
+    }
+
+    @Test
+    fun `custom ahead voice cooldown is respected`() {
+        val pt0 = TrackPoint(lat = 55.7300, lon = 37.5000, elapsedSeconds = 0)
+        val pt1 = TrackPoint(lat = 55.7400, lon = 37.5000, elapsedSeconds = 1000)
+        val engine = GhostEngine(
+            ghostRoute = GeoMath.computeCumulativeDistances(listOf(pt0, pt1)),
+            aheadVoiceCooldownSeconds = 60L
+        )
+
+        // Fall behind first
+        engine.compare(userLat = 55.7300, userLon = 37.5000, elapsedSeconds = 50)
+
+        // Overtake at 200s
+        val rOvertake = engine.compare(userLat = 55.7400, userLon = 37.5000, elapsedSeconds = 200)
+        assertTrue(rOvertake.shouldSpeakOvertake)
+
+        // Check at 240s (40s < 60s cooldown)
+        val rEarly = engine.compare(userLat = 55.7400, userLon = 37.5000, elapsedSeconds = 240)
+        assertFalse(rEarly.shouldSpeakAheadReminder)
+
+        // Check at 265s (65s >= 60s cooldown)
+        val rDue = engine.compare(userLat = 55.7400, userLon = 37.5000, elapsedSeconds = 265)
+        assertTrue("Reminder should fire after custom 60s cooldown", rDue.shouldSpeakAheadReminder)
+    }
 }

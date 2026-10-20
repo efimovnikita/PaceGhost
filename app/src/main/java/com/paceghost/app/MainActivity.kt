@@ -14,7 +14,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,11 +27,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.ContextCompat
 import com.paceghost.app.ui.active.ActiveWalkScreen
 import com.paceghost.app.ui.home.HomeScreen
+import com.paceghost.app.ui.theme.CyanGhost
 import com.paceghost.app.ui.theme.DarkBackground
+import com.paceghost.app.ui.theme.DarkSurface
+import com.paceghost.app.ui.theme.NeonGreenRunner
 import com.paceghost.app.ui.theme.PaceGhostTheme
+import com.paceghost.app.ui.theme.TextPrimary
+import com.paceghost.app.ui.theme.TextSecondary
 
 sealed interface Screen {
     object Home : Screen
@@ -54,7 +67,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppNavigation() {
+    val context = LocalContext.current
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+    var pendingWalk by remember { mutableStateOf<Screen.ActiveWalk?>(null) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
 
     // Prepare permission list
     val permissionsToRequest = remember {
@@ -72,13 +88,72 @@ fun AppNavigation() {
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) {
-        // Permissions handled
+    ) { permissions ->
+        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+
+        if (fineLocationGranted && pendingWalk != null) {
+            currentScreen = pendingWalk!!
+        }
+        pendingWalk = null
     }
 
     // Request permissions on first launch
     LaunchedEffect(Unit) {
         permissionLauncher.launch(permissionsToRequest)
+    }
+
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showPermissionDialog = false
+                pendingWalk = null
+            },
+            containerColor = DarkSurface,
+            title = {
+                Text(
+                    text = "Location Permission Required",
+                    style = androidx.compose.material3.MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = NeonGreenRunner
+                )
+            },
+            text = {
+                Text(
+                    text = "PaceGhost needs precise location access to track your route, pace, and compare your progress with the ghost runner in real time.",
+                    style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                    color = TextPrimary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPermissionDialog = false
+                        permissionLauncher.launch(permissionsToRequest)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CyanGhost,
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text("Grant Permission", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showPermissionDialog = false
+                        pendingWalk = null
+                    }
+                ) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            }
+        )
     }
 
     AnimatedContent(
@@ -90,10 +165,21 @@ fun AppNavigation() {
             is Screen.Home -> {
                 HomeScreen(
                     onStartWalk = { ghostWalkId, isDemo ->
-                        if (!isDemo) {
-                            permissionLauncher.launch(permissionsToRequest)
+                        if (isDemo) {
+                            currentScreen = Screen.ActiveWalk(ghostWalkId = ghostWalkId, isDemo = true)
+                        } else {
+                            val fineLocationGranted = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.ACCESS_FINE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                            if (fineLocationGranted) {
+                                currentScreen = Screen.ActiveWalk(ghostWalkId = ghostWalkId, isDemo = false)
+                            } else {
+                                pendingWalk = Screen.ActiveWalk(ghostWalkId = ghostWalkId, isDemo = false)
+                                showPermissionDialog = true
+                            }
                         }
-                        currentScreen = Screen.ActiveWalk(ghostWalkId = ghostWalkId, isDemo = isDemo)
                     }
                 )
             }

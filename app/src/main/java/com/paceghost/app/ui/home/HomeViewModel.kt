@@ -4,9 +4,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.paceghost.app.data.local.AppDatabase
+import com.paceghost.app.data.local.VoiceSettingsPreferences
 import com.paceghost.app.data.local.entity.WalkEntity
 import com.paceghost.app.data.repository.WalkRepository
 import com.paceghost.app.data.repository.WalkRepositoryImpl
+import com.paceghost.app.domain.model.VoiceSettings
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,27 +31,40 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = emptyList()
         )
 
-    private val _isDemoMode = MutableStateFlow(true)
+    private val _isDemoMode = MutableStateFlow(false)
     val isDemoMode: StateFlow<Boolean> = _isDemoMode.asStateFlow()
+
+    private val voicePrefs = VoiceSettingsPreferences(application)
+    private val _voiceSettings = MutableStateFlow(voicePrefs.getVoiceSettings())
+    val voiceSettings: StateFlow<VoiceSettings> = _voiceSettings.asStateFlow()
 
     private val _userMessage = MutableSharedFlow<String>(extraBufferCapacity = 5)
     val userMessage = _userMessage.asSharedFlow()
 
-    init {
-        // Ensure initial demo walk is available
-        viewModelScope.launch {
-            AppDatabase.populateDemoWalk(AppDatabase.getInstance(application))
-        }
-    }
-
     fun setDemoMode(enabled: Boolean) {
         _isDemoMode.value = enabled
+        if (enabled) {
+            viewModelScope.launch {
+                val db = AppDatabase.getInstance(getApplication())
+                if (db.walkDao().getWalkCount() == 0) {
+                    AppDatabase.populateDemoWalk(db)
+                }
+            }
+        }
     }
 
     fun deleteWalk(id: Long) {
         viewModelScope.launch {
             repository.deleteWalk(id)
             _userMessage.emit("Walk deleted")
+        }
+    }
+
+    fun saveVoiceSettings(settings: VoiceSettings) {
+        voicePrefs.saveVoiceSettings(settings)
+        _voiceSettings.value = settings
+        viewModelScope.launch {
+            _userMessage.emit("Voice guidance settings saved")
         }
     }
 

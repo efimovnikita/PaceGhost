@@ -41,22 +41,11 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         private fun buildDatabase(context: Context, coroutineScope: CoroutineScope): AppDatabase {
-            var dbInstance: AppDatabase? = null
-            val database = Room.databaseBuilder(
+            return Room.databaseBuilder(
                 context,
                 AppDatabase::class.java,
                 DATABASE_NAME
-            ).addCallback(object : RoomDatabase.Callback() {
-                override fun onCreate(db: SupportSQLiteDatabase) {
-                    super.onCreate(db)
-                    coroutineScope.launch {
-                        dbInstance?.let { populateDemoWalk(it) }
-                    }
-                }
-            }).build()
-
-            dbInstance = database
-            return database
+            ).build()
         }
 
         suspend fun populateDemoWalk(database: AppDatabase) {

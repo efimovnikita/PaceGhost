@@ -7,15 +7,23 @@ import kotlin.math.max
 import kotlin.math.min
 
 class GhostEngine(
-    ghostRoute: List<TrackPoint> = emptyList()
+    ghostRoute: List<TrackPoint> = emptyList(),
+    var behindVoiceCooldownSeconds: Long = DEFAULT_BEHIND_VOICE_COOLDOWN_SECONDS,
+    var isAheadVoiceEnabled: Boolean = DEFAULT_AHEAD_VOICE_ENABLED,
+    var aheadVoiceCooldownSeconds: Long = DEFAULT_AHEAD_REMINDER_COOLDOWN_SECONDS
 ) {
     companion object {
         const val OFF_ROUTE_THRESHOLD_METERS = 60.0
         const val BEHIND_TIME_THRESHOLD_SECONDS = 30L
         const val AHEAD_TIME_THRESHOLD_SECONDS = -15L
         const val BEHIND_VIBRATION_COOLDOWN_SECONDS = 60L
-        const val BEHIND_VOICE_COOLDOWN_SECONDS = 60L
-        const val AHEAD_REMINDER_COOLDOWN_SECONDS = 180L
+        const val DEFAULT_BEHIND_VOICE_COOLDOWN_SECONDS = 60L
+        const val DEFAULT_AHEAD_VOICE_ENABLED = true
+        const val DEFAULT_AHEAD_REMINDER_COOLDOWN_SECONDS = 180L
+
+        // Backward compatibility constants
+        const val BEHIND_VOICE_COOLDOWN_SECONDS = DEFAULT_BEHIND_VOICE_COOLDOWN_SECONDS
+        const val AHEAD_REMINDER_COOLDOWN_SECONDS = DEFAULT_AHEAD_REMINDER_COOLDOWN_SECONDS
     }
 
     private var route: List<TrackPoint> = prepareRoute(ghostRoute)
@@ -26,6 +34,16 @@ class GhostEngine(
     private var hasSpokenOffRoute: Boolean = false
     private var previousStatus: GhostStatus = GhostStatus.NO_GHOST
     private var wasBehind: Boolean = false
+
+    fun updateVoiceSettings(
+        behindCooldownSeconds: Long,
+        isAheadVoiceEnabled: Boolean,
+        aheadCooldownSeconds: Long
+    ) {
+        this.behindVoiceCooldownSeconds = behindCooldownSeconds
+        this.isAheadVoiceEnabled = isAheadVoiceEnabled
+        this.aheadVoiceCooldownSeconds = aheadCooldownSeconds
+    }
 
     fun setGhostRoute(newRoute: List<TrackPoint>) {
         route = prepareRoute(newRoute)
@@ -190,7 +208,7 @@ class GhostEngine(
                 lastBehindVibrationElapsedSeconds = elapsedSeconds
             }
             if (lastBehindVoiceElapsedSeconds < 0L ||
-                (elapsedSeconds - lastBehindVoiceElapsedSeconds >= BEHIND_VOICE_COOLDOWN_SECONDS)
+                (elapsedSeconds - lastBehindVoiceElapsedSeconds >= behindVoiceCooldownSeconds)
             ) {
                 shouldSpeakBehind = true
                 lastBehindVoiceElapsedSeconds = elapsedSeconds
@@ -200,11 +218,14 @@ class GhostEngine(
             val isOvertake = wasBehind || previousStatus == GhostStatus.BEHIND || previousStatus == GhostStatus.ON_PACE
             if (isOvertake) {
                 shouldVibrateOvertake = true
-                shouldSpeakOvertake = true
+                if (isAheadVoiceEnabled) {
+                    shouldSpeakOvertake = true
+                }
                 lastAheadVoiceElapsedSeconds = elapsedSeconds
             } else {
-                if (lastAheadVoiceElapsedSeconds >= 0L &&
-                    (elapsedSeconds - lastAheadVoiceElapsedSeconds >= AHEAD_REMINDER_COOLDOWN_SECONDS)
+                if (isAheadVoiceEnabled &&
+                    lastAheadVoiceElapsedSeconds >= 0L &&
+                    (elapsedSeconds - lastAheadVoiceElapsedSeconds >= aheadVoiceCooldownSeconds)
                 ) {
                     shouldSpeakAheadReminder = true
                     lastAheadVoiceElapsedSeconds = elapsedSeconds

@@ -11,6 +11,7 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -19,6 +20,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.paceghost.app.data.local.AppDatabase
+import com.paceghost.app.data.local.VoiceSettingsPreferences
 import com.paceghost.app.data.repository.WalkRepository
 import com.paceghost.app.data.repository.WalkRepositoryImpl
 import com.paceghost.app.domain.engine.AutoPauseDetector
@@ -28,8 +30,11 @@ import com.paceghost.app.domain.engine.PaceCalculator
 import com.paceghost.app.domain.model.GhostComparisonResult
 import com.paceghost.app.domain.model.GhostStatus
 import com.paceghost.app.domain.model.TrackPoint
+import com.paceghost.app.domain.model.VoiceSettings
 import com.paceghost.app.domain.model.WalkState
 import com.paceghost.app.domain.simulator.WalkSimulator
+import com.paceghost.app.util.AppLogger
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -96,11 +101,48 @@ class WalkTrackingService : Service() {
     private var voiceObservationJob: Job? = null
     private var lastRecordedLocation: Location? = null
     private var isLocationUpdatesActive = false
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var consecutiveRejectedSpikes = 0
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val location = result.lastLocation ?: return
             handleRealLocationUpdate(location)
+        }
+    }
+
+    private fun acquireWakeLock() {
+        if (wakeLock == null) {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            wakeLock = powerManager?.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "PaceGhost:WalkTrackingWakeLock"
+            )?.apply {
+                setReferenceCounted(false)
+            }
+        }
+        try {
+            wakeLock?.let {
+                if (!it.isHeld) {
+                    it.acquire(4 * 60 * 60 * 1000L) // 4 hours max timeout
+                    AppLogger.i("WalkTrackingService", "PARTIAL_WAKE_LOCK acquired")
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("WalkTrackingService", "Failed to acquire WakeLock", e)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                    AppLogger.i("WalkTrackingService", "PARTIAL_WAKE_LOCK released")
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.e("WalkTrackingService", "Failed to release WakeLock", e)
         }
     }
 
@@ -155,6 +197,14 @@ class WalkTrackingService : Service() {
 
     fun startTracking(ghostWalkId: Long = -1L, isDemo: Boolean = false) {
         if (_walkState.value.isTracking) return
+        AppLogger.i("WalkTrackingService", "startTracking: ghostWalkId=$ghostWalkId, isDemo=$isDemo")
+
+        val voiceSettings = VoiceSettingsPreferences(applicationContext).getVoiceSettings()
+        ghostEngine.updateVoiceSettings(
+            behindCooldownSeconds = voiceSettings.behindCooldownSeconds,
+            isAheadVoiceEnabled = voiceSettings.isAheadVoiceEnabled,
+            aheadCooldownSeconds = voiceSettings.aheadCooldownSeconds
+        )
 
         resetTrackingData()
         _walkState.value = WalkState(
@@ -166,6 +216,9 @@ class WalkTrackingService : Service() {
         )
 
         promoteToForeground()
+        if (!isDemo) {
+            acquireWakeLock()
+        }
 
         serviceScope.launch {
             loadGhostRoute(ghostWalkId, isDemo)
@@ -240,19 +293,23 @@ class WalkTrackingService : Service() {
     }
 
     fun pauseTracking() {
+        AppLogger.i("WalkTrackingService", "pauseTracking called")
         _walkState.value = _walkState.value.copy(isPaused = true)
         updateNotification()
     }
 
     fun resumeTracking() {
+        AppLogger.i("WalkTrackingService", "resumeTracking called")
         _walkState.value = _walkState.value.copy(isPaused = false)
         updateNotification()
     }
 
     fun stopTracking() {
+        AppLogger.i("WalkTrackingService", "stopTracking called")
         tickerJob?.cancel()
         demoJob?.cancel()
         stopRealMode()
+        releaseWakeLock()
 
         _walkState.value = _walkState.value.copy(
             isTracking = false,
@@ -262,7 +319,9 @@ class WalkTrackingService : Service() {
 
         try {
             stopForeground(STOP_FOREGROUND_REMOVE)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLogger.w("WalkTrackingService", "Error stopping foreground: ${e.message}")
+        }
         stopSelf()
     }
 
@@ -275,6 +334,7 @@ class WalkTrackingService : Service() {
     }
 
     private fun startRealMode() {
+        acquireWakeLock()
         stepSensorManager.start()
 
         val hasFineLocation = ContextCompat.checkSelfPermission(
@@ -282,10 +342,12 @@ class WalkTrackingService : Service() {
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
+        AppLogger.i("WalkTrackingService", "startRealMode: hasFineLocation=$hasFineLocation")
+
         if (hasFineLocation) {
             val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2500L)
                 .setMinUpdateIntervalMillis(1500L)
-                .setMinUpdateDistanceMeters(2.0f)
+                .setMinUpdateDistanceMeters(0f)
                 .build()
 
             try {
@@ -295,18 +357,23 @@ class WalkTrackingService : Service() {
                     Looper.getMainLooper()
                 )
                 isLocationUpdatesActive = true
-            } catch (_: SecurityException) {
-                // Handle missing permission gracefully
+                AppLogger.i("WalkTrackingService", "requestLocationUpdates registered successfully")
+            } catch (e: SecurityException) {
+                AppLogger.e("WalkTrackingService", "SecurityException requesting location updates", e)
             }
+        } else {
+            AppLogger.w("WalkTrackingService", "Cannot start location updates: ACCESS_FINE_LOCATION not granted")
         }
     }
 
     private fun stopRealMode() {
+        AppLogger.i("WalkTrackingService", "stopRealMode called: isLocationUpdatesActive=$isLocationUpdatesActive")
         if (isLocationUpdatesActive) {
             fusedLocationClient.removeLocationUpdates(locationCallback)
             isLocationUpdatesActive = false
         }
         stepSensorManager.stop()
+        releaseWakeLock()
     }
 
     private fun startDemoMode() {
@@ -375,13 +442,21 @@ class WalkTrackingService : Service() {
 
     private fun handleRealLocationUpdate(location: Location) {
         val currentState = _walkState.value
-        if (!currentState.isTracking || currentState.isPaused) return
+        if (!currentState.isTracking || currentState.isPaused) {
+            AppLogger.d("Location", "Ignored update (tracking=${currentState.isTracking}, paused=${currentState.isPaused})")
+            return
+        }
 
-        // Basic filter: discard low accuracy readings
-        if (location.hasAccuracy() && location.accuracy > 35f) return
+        // 1. Accuracy filter (discard fixes worse than 40m)
+        if (location.hasAccuracy() && location.accuracy > 40f) {
+            AppLogger.w("Location", "Dropped low accuracy: ${location.accuracy}m (lat=${location.latitude}, lon=${location.longitude})")
+            return
+        }
 
         val prevLoc = lastRecordedLocation
         var addedDistance = 0.0
+        var timeDeltaSec = 0.0
+
         if (prevLoc != null) {
             addedDistance = GeoMath.haversineDistance(
                 prevLoc.latitude,
@@ -389,9 +464,34 @@ class WalkTrackingService : Service() {
                 location.latitude,
                 location.longitude
             )
-            // Filter extreme GPS jumps
-            if (addedDistance > 50.0) return
+            val timeDeltaMs = location.time - prevLoc.time
+            timeDeltaSec = if (timeDeltaMs > 0) timeDeltaMs / 1000.0 else 0.0
+
+            val intervalSpeedMps = if (timeDeltaSec > 0.1) addedDistance / timeDeltaSec else 0.0
+            val isAbnormalSpeed = (timeDeltaSec > 0.1 && intervalSpeedMps > 10.0 && addedDistance > 30.0)
+
+            if (isAbnormalSpeed) {
+                consecutiveRejectedSpikes++
+                AppLogger.w(
+                    "Location",
+                    "Spike detected: dist=${String.format(Locale.US, "%.1f", addedDistance)}m, dt=${String.format(Locale.US, "%.1f", timeDeltaSec)}s, speed=${String.format(Locale.US, "%.1f", intervalSpeedMps)}m/s, consecutive=$consecutiveRejectedSpikes"
+                )
+
+                if (consecutiveRejectedSpikes < 3 && timeDeltaSec < 45.0) {
+                    return
+                } else {
+                    AppLogger.i(
+                        "Location",
+                        "Re-anchoring after spike/gap recovery: consecutive=$consecutiveRejectedSpikes, dt=${String.format(Locale.US, "%.1f", timeDeltaSec)}s"
+                    )
+                    consecutiveRejectedSpikes = 0
+                    addedDistance = 0.0
+                }
+            } else {
+                consecutiveRejectedSpikes = 0
+            }
         }
+
         lastRecordedLocation = location
 
         val newDistance = currentState.distanceMeters + addedDistance
@@ -429,6 +529,19 @@ class WalkTrackingService : Service() {
             currentSpeedKmh = speedKmh.toDouble(),
             ghostComparison = ghostResult,
             currentPoints = updatedPoints
+        )
+
+        AppLogger.d(
+            "Location",
+            "Accepted: lat=${String.format(Locale.US, "%.5f", location.latitude)}, lon=${String.format(Locale.US, "%.5f", location.longitude)}, acc=${String.format(Locale.US, "%.1f", location.accuracy)}m, dt=${String.format(Locale.US, "%.1f", timeDeltaSec)}s, added=${String.format(Locale.US, "%.1f", addedDistance)}m, total=${String.format(Locale.US, "%.1f", newDistance)}m, autoPaused=$isAutoPaused"
+        )
+    }
+
+    fun updateVoiceSettings(settings: VoiceSettings) {
+        ghostEngine.updateVoiceSettings(
+            behindCooldownSeconds = settings.behindCooldownSeconds,
+            isAheadVoiceEnabled = settings.isAheadVoiceEnabled,
+            aheadCooldownSeconds = settings.aheadCooldownSeconds
         )
     }
 
@@ -521,18 +634,22 @@ class WalkTrackingService : Service() {
 
     private fun resetTrackingData() {
         lastRecordedLocation = null
+        consecutiveRejectedSpikes = 0
         stepSensorManager.reset()
         autoPauseDetector.reset()
         ghostEngine.reset()
+        AppLogger.d("WalkTrackingService", "resetTrackingData completed")
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        AppLogger.i("WalkTrackingService", "onDestroy called")
         tickerJob?.cancel()
         demoJob?.cancel()
         vibrationObservationJob?.cancel()
         voiceObservationJob?.cancel()
         stopRealMode()
+        releaseWakeLock()
         voiceGuidanceManager.shutdown()
         serviceScope.cancel()
     }

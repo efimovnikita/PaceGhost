@@ -13,15 +13,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -45,10 +50,12 @@ import com.paceghost.app.ui.active.components.WalkHudCard
 import com.paceghost.app.ui.summary.WalkSummaryDialog
 import com.paceghost.app.ui.theme.CyanGhost
 import com.paceghost.app.ui.theme.DarkBackground
+import com.paceghost.app.ui.theme.DarkSurface
 import com.paceghost.app.ui.theme.DarkSurfaceVariant
 import com.paceghost.app.ui.theme.NeonGreenRunner
 import com.paceghost.app.ui.theme.TextDisabled
 import com.paceghost.app.ui.theme.TextPrimary
+import com.paceghost.app.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,11 +68,15 @@ fun ActiveWalkScreen(
 ) {
     val walkState by viewModel.walkState.collectAsState()
     val showSummaryDialog by viewModel.showSummaryDialog.collectAsState()
+    val showBatteryOptimizationDialog by viewModel.showBatteryOptimizationDialog.collectAsState()
     var isOffRouteSimulated by remember { mutableStateOf(false) }
 
     // Start tracking and bind service on launch
     LaunchedEffect(ghostWalkId, isDemo) {
         viewModel.start(ghostWalkId, isDemo)
+        if (!isDemo) {
+            viewModel.checkBatteryOptimization()
+        }
     }
 
     // Handle navigation events
@@ -79,7 +90,11 @@ fun ActiveWalkScreen(
 
     // Intercept back button to confirm finish/exit
     BackHandler {
-        viewModel.requestFinish()
+        if (showSummaryDialog) {
+            viewModel.dismissSummaryDialog()
+        } else {
+            viewModel.requestFinish()
+        }
     }
 
     Box(
@@ -151,7 +166,7 @@ fun ActiveWalkScreen(
                             } else {
                                 Icons.AutoMirrored.Filled.VolumeOff
                             },
-                            contentDescription = if (walkState.isVoiceGuidanceEnabled) "Отключить голосовые подсказки" else "Включить голосовые подсказки",
+                            contentDescription = if (walkState.isVoiceGuidanceEnabled) "Disable voice guidance" else "Enable voice guidance",
                             tint = if (walkState.isVoiceGuidanceEnabled) CyanGhost else TextDisabled
                         )
                     }
@@ -204,7 +219,59 @@ fun ActiveWalkScreen(
                 stepCount = walkState.stepCount,
                 averagePaceSecondsPerKm = walkState.currentPaceSecondsPerKm,
                 onSave = { title -> viewModel.saveWalk(title) },
-                onDiscard = { viewModel.discardWalk() }
+                onDiscard = { viewModel.discardWalk() },
+                onDismiss = { viewModel.dismissSummaryDialog() }
+            )
+        }
+
+        // 5. Battery Optimization Notice Dialog
+        if (showBatteryOptimizationDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissBatteryOptimizationDialog(dontAskAgain = false) },
+                containerColor = DarkSurface,
+                shape = RoundedCornerShape(20.dp),
+                title = {
+                    Text(
+                        text = "Background GPS Tracking",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = TextPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        text = "To prevent Android from sleeping or stopping GPS updates while your phone is locked or in your pocket, please disable battery optimization for PaceGhost.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { viewModel.openBatteryOptimizationSettings(dontAskAgain = true) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NeonGreenRunner,
+                            contentColor = Color.Black
+                        )
+                    ) {
+                        Text("Settings", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(
+                            onClick = { viewModel.dismissBatteryOptimizationDialog(dontAskAgain = true) },
+                            colors = ButtonDefaults.textButtonColors(contentColor = TextDisabled)
+                        ) {
+                            Text("Don't ask")
+                        }
+                        TextButton(
+                            onClick = { viewModel.dismissBatteryOptimizationDialog(dontAskAgain = false) },
+                            colors = ButtonDefaults.textButtonColors(contentColor = TextSecondary)
+                        ) {
+                            Text("Later")
+                        }
+                    }
+                }
             )
         }
     }

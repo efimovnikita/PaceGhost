@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import com.paceghost.app.util.AppLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +31,7 @@ class StepSensorManager(
     fun start() {
         if (isListening) return
         isListening = true
+        AppLogger.i("StepSensor", "start: hardwareSensorAvailable=$isHardwareSensorAvailable")
 
         if (isHardwareSensorAvailable && stepCounterSensor != null) {
             sensorManager?.registerListener(
@@ -43,6 +45,7 @@ class StepSensorManager(
     fun stop() {
         if (!isListening) return
         isListening = false
+        AppLogger.i("StepSensor", "stop: finalSessionSteps=${_stepCountFlow.value}")
         if (isHardwareSensorAvailable) {
             sensorManager?.unregisterListener(this)
         }
@@ -77,11 +80,16 @@ class StepSensorManager(
 
         if (initialStepCount == null) {
             initialStepCount = rawTotalSteps
+            AppLogger.i("StepSensor", "Hardware step counter baseline set: $rawTotalSteps")
         }
 
         val baseline = initialStepCount ?: rawTotalSteps
         val sessionSteps = (rawTotalSteps - baseline).coerceAtLeast(0)
         _stepCountFlow.value = sessionSteps
+
+        if (sessionSteps == 1 || sessionSteps % 50 == 0) {
+            AppLogger.d("StepSensor", "Hardware step count update: $sessionSteps (raw: $rawTotalSteps)")
+        }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {

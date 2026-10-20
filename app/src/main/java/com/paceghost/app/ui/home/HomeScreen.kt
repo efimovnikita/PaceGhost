@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,11 +23,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.filled.Settings
+import androidx.core.content.FileProvider
+import com.paceghost.app.util.AppLogger
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,8 +53,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.paceghost.app.ui.home.components.VoiceSettingsDialog
 import com.paceghost.app.ui.home.components.WalkCard
 import com.paceghost.app.ui.theme.CyanGhost
 import com.paceghost.app.ui.theme.DarkBackground
@@ -80,6 +89,8 @@ fun HomeScreen(
 
     val walks by viewModel.walks.collectAsState()
     val isDemoMode by viewModel.isDemoMode.collectAsState()
+    val voiceSettings by viewModel.voiceSettings.collectAsState()
+    var showVoiceSettingsDialog by remember { mutableStateOf(false) }
 
     // Observe user message notifications
     LaunchedEffect(Unit) {
@@ -114,69 +125,125 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
                             text = "Pace",
-                            style = MaterialTheme.typography.headlineMedium.copy(
+                            style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Black,
-                                fontSize = 24.sp
+                                fontSize = 22.sp
                             ),
-                            color = NeonGreenRunner
+                            color = NeonGreenRunner,
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Text(
                             text = "Ghost",
-                            style = MaterialTheme.typography.headlineMedium.copy(
+                            style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Black,
-                                fontSize = 24.sp
+                                fontSize = 22.sp
                             ),
-                            color = CyanGhost
+                            color = CyanGhost,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 },
                 actions = {
-                    // Demo Mode Switch
+                    // Compact Demo Mode Toggle Chip
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .background(DarkSurfaceVariant, RoundedCornerShape(20.dp))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (isDemoMode) CyanGhost.copy(alpha = 0.25f) else DarkSurfaceVariant)
+                            .clickable { viewModel.setDemoMode(!isDemoMode) }
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Science,
-                            contentDescription = "Demo",
+                            contentDescription = "Demo Mode",
                             tint = if (isDemoMode) CyanGhost else TextSecondary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isDemoMode) "Demo ON" else "Demo OFF",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isDemoMode) CyanGhost else TextSecondary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Switch(
-                            checked = isDemoMode,
-                            onCheckedChange = { viewModel.setDemoMode(it) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = CyanGhost,
-                                checkedTrackColor = CyanGhost.copy(alpha = 0.3f),
-                                uncheckedThumbColor = TextSecondary,
-                                uncheckedTrackColor = DarkSurface
+                            text = if (isDemoMode) "DEMO" else "Demo",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = if (isDemoMode) FontWeight.Bold else FontWeight.Medium
                             ),
-                            modifier = Modifier.padding(start = 2.dp)
+                            color = if (isDemoMode) CyanGhost else TextSecondary
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
 
                     // Import GPX Button
                     IconButton(
-                        onClick = { filePickerLauncher.launch("*/*") }
+                        onClick = { filePickerLauncher.launch("*/*") },
+                        modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.FileOpen,
                             contentDescription = "Import GPX",
-                            tint = TextPrimary
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Voice Settings Button
+                    IconButton(
+                        onClick = { showVoiceSettingsDialog = true },
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Voice Guidance Settings",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Export Logs Button
+                    IconButton(
+                        onClick = {
+                            val logFile = AppLogger.getLogFile(context)
+                            if (logFile == null || logFile.length() == 0L) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Log file is empty or not created yet")
+                                }
+                            } else {
+                                try {
+                                    val uri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        logFile
+                                    )
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        putExtra(Intent.EXTRA_SUBJECT, "PaceGhost Debug Log")
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    val chooser = Intent.createChooser(shareIntent, "Export PaceGhost Logs").apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(chooser)
+                                } catch (e: Exception) {
+                                    AppLogger.e("HomeScreen", "Failed to export logs", e)
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Failed to export logs: ${e.message}")
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.BugReport,
+                            contentDescription = "Export Logs",
+                            tint = CyanGhost,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 },
@@ -275,6 +342,17 @@ fun HomeScreen(
                     )
                 }
             }
+        }
+
+        if (showVoiceSettingsDialog) {
+            VoiceSettingsDialog(
+                initialSettings = voiceSettings,
+                onSave = { newSettings ->
+                    viewModel.saveVoiceSettings(newSettings)
+                    showVoiceSettingsDialog = false
+                },
+                onDismiss = { showVoiceSettingsDialog = false }
+            )
         }
     }
 }

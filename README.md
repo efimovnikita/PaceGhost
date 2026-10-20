@@ -26,11 +26,14 @@
    - Встроен кулдаун (не чаще одного раза в 60 секунд), чтобы вибрация не раздражала.
    - При обгоне призрака (переход из отставания в опережение) подается ободряющий **одиночный импульс** (200 мс).
 
-4. **Голосовые подсказки для наушников (Audio Ducking TTS)**:
+4. **Голосовые подсказки для наушников (Audio Ducking TTS & Voice Guidance Settings)**:
    - Полная тишина в темпе призрака (`ON_PACE`) — приложение не мешает музыке или подкастам.
-   - При отставании раз в минуту звучит короткая подсказка: *«Прибавьте шаг, отстаёте от призрака»*.
-   - При обгоне звучит: *«Отличный темп, призрак позади!»*, а при сохранении отрыва — редкое напоминание раз в 3 минуты: *«Темп высокий, так держать!»*.
-   - При сходе с трека (> 60 м) звучит предупреждение: *«Вы сошли с маршрута»*.
+   - Настраиваемый интервал повтора оповещений прямо из диалога настроек на главном экране (иконка ⚙️):
+     - При отставании: настраиваемый кулдаун от 15 секунд до 5 минут (*"Catch up, lagging behind ghost"*).
+     - При опережении: настраиваемый кулдаун от 30 секунд до 10 минут (*"Fast pace, keep it up!"*), либо полное отключение голосовых оповещений при опережении (Silent mode).
+   - При обгоне звучит: *"Great pace, ghost is behind!"*.
+   - При сходе с трека (> 60 м) звучит предупреждение: *"You are off route"*.
+   - Движок TTS настроен на английскую локаль (`Locale.US`).
    - Поддержка Audio Ducking: фоновое аудио в наушниках плавно приглушается на время фразы и сразу восстанавливается.
    - Быстрый переключатель звука (🔊 / 🔇) в верхнем баре экрана ходьбы.
 
@@ -86,7 +89,7 @@
 
 ## 📱 Скриншоты приложения (English UI)
 
-| Home Screen | Active Walk & Map | Simulation Controls & Auto-pause | Walk Summary |
-| :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/06_home_screen_en.png" width="220" /> | <img src="docs/screenshots/07_active_walk_en.png" width="220" /> | <img src="docs/screenshots/11_traffic_light_en.png" width="220" /> | <img src="docs/screenshots/09_summary_en.png" width="220" /> |
-| Список маршрутов и Демо-режим | Карта OsmDroid с HUD и призраком | Управление симуляцией и автопауза | Сохранение трека и сводка |
+| Home Screen | Voice Guidance Settings | Active Walk & Map | Simulation Controls & Auto-pause | Walk Summary |
+| :---: | :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/01_home_header_fixed.png" width="180" /> | <img src="docs/screenshots/12_voice_guidance_dialog.png" width="180" /> | <img src="docs/screenshots/07_active_walk_en.png" width="180" /> | <img src="docs/screenshots/11_traffic_light_en.png" width="180" /> | <img src="docs/screenshots/09_summary_en.png" width="180" /> |
+| Исправленная шапка и треки | Настройка интервалов речи | Карта OsmDroid с HUD и призраком | Управление симуляцией и автопауза | Сохранение трека и сводка |
