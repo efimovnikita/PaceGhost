@@ -1,7 +1,9 @@
 package com.paceghost.app.ui.home.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,18 +13,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -52,6 +57,7 @@ fun WalkCard(
     onChallengeGhost: (Long) -> Unit,
     onExportGpx: (Long) -> Unit,
     onDelete: (Long) -> Unit,
+    onPreviewTrack: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val formattedDate = remember(walk.startTime) {
@@ -131,62 +137,79 @@ fun WalkCard(
             // Action buttons row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Challenge Ghost button
-                Button(
-                    onClick = { onChallengeGhost(walk.id) },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CyanGhost.copy(alpha = 0.2f),
-                        contentColor = CyanGhost
-                    )
+                // Group of primary/route actions
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.DirectionsRun,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Walk with Ghost",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
-                    )
+                    // Challenge Ghost button (prominent primary action with running icon only)
+                    FilledIconButton(
+                        onClick = { onChallengeGhost(walk.id) },
+                        modifier = Modifier.size(42.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = CyanGhost,
+                            contentColor = Color.Black
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.DirectionsRun,
+                            contentDescription = "Walk with Ghost",
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    // View track on map button
+                    OutlinedIconButton(
+                        onClick = { onPreviewTrack(walk.id) },
+                        modifier = Modifier.size(42.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, CyanGhost.copy(alpha = 0.5f)),
+                        colors = IconButtonDefaults.outlinedIconButtonColors(
+                            contentColor = CyanGhost
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Map,
+                            contentDescription = "View track on map",
+                            tint = CyanGhost,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // GPX Export button
+                    OutlinedIconButton(
+                        onClick = { onExportGpx(walk.id) },
+                        modifier = Modifier.size(42.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, DarkSurfaceVariant),
+                        colors = IconButtonDefaults.outlinedIconButtonColors(
+                            contentColor = TextPrimary
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Share,
+                            contentDescription = "Export GPX",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
-                // GPX Export button
-                OutlinedButton(
-                    onClick = { onExportGpx(walk.id) },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = TextPrimary
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Share,
-                        contentDescription = "Export GPX",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "GPX",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                Spacer(modifier = Modifier.weight(1f))
 
-                // Delete button
+                // Delete button (separated on the far right)
                 IconButton(
                     onClick = { onDelete(walk.id) },
+                    modifier = Modifier.size(42.dp),
                     colors = IconButtonDefaults.iconButtonColors(contentColor = ErrorRed.copy(alpha = 0.8f))
                 ) {
                     Icon(
                         imageVector = Icons.Filled.DeleteOutline,
                         contentDescription = "Delete walk",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }

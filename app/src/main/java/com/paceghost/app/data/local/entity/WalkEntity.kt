@@ -2,6 +2,7 @@ package com.paceghost.app.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.paceghost.app.domain.engine.PaceCalculator
 
 @Entity(tableName = "walks")
 data class WalkEntity(
@@ -16,3 +17,11 @@ data class WalkEntity(
     val averagePaceSecondsPerKm: Double,
     val isFavorite: Boolean = false
 )
+
+val WalkEntity.averageSpeedKmh: Double
+    get() = if (durationSeconds > 0L && distanceMeters > 0.0) {
+        (distanceMeters / 1000.0) / (durationSeconds / 3600.0)
+    } else {
+        PaceCalculator.paceSecondsToSpeedKmh(averagePaceSecondsPerKm)
+    }
+

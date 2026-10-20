@@ -80,6 +80,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     onStartWalk: (ghostWalkId: Long, isDemo: Boolean) -> Unit,
+    onPreviewTrack: (Long) -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -322,6 +323,7 @@ fun HomeScreen(
                     WalkCard(
                         walk = walk,
                         onChallengeGhost = { id -> onStartWalk(id, isDemoMode) },
+                        onPreviewTrack = onPreviewTrack,
                         onExportGpx = { id ->
                             scope.launch {
                                 val gpx = viewModel.getGpxContent(id)

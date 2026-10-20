@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.ContextCompat
 import com.paceghost.app.ui.active.ActiveWalkScreen
 import com.paceghost.app.ui.home.HomeScreen
+import com.paceghost.app.ui.preview.TrackPreviewScreen
 import com.paceghost.app.ui.theme.CyanGhost
 import com.paceghost.app.ui.theme.DarkBackground
 import com.paceghost.app.ui.theme.DarkSurface
@@ -44,6 +45,7 @@ import com.paceghost.app.ui.theme.TextSecondary
 sealed interface Screen {
     object Home : Screen
     data class ActiveWalk(val ghostWalkId: Long, val isDemo: Boolean) : Screen
+    data class TrackPreview(val walkId: Long) : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -156,6 +158,24 @@ fun AppNavigation() {
         )
     }
 
+    val launchWalk: (Long, Boolean) -> Unit = { ghostWalkId, isDemo ->
+        if (isDemo) {
+            currentScreen = Screen.ActiveWalk(ghostWalkId = ghostWalkId, isDemo = true)
+        } else {
+            val fineLocationGranted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (fineLocationGranted) {
+                currentScreen = Screen.ActiveWalk(ghostWalkId = ghostWalkId, isDemo = false)
+            } else {
+                pendingWalk = Screen.ActiveWalk(ghostWalkId = ghostWalkId, isDemo = false)
+                showPermissionDialog = true
+            }
+        }
+    }
+
     AnimatedContent(
         targetState = currentScreen,
         transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -165,21 +185,21 @@ fun AppNavigation() {
             is Screen.Home -> {
                 HomeScreen(
                     onStartWalk = { ghostWalkId, isDemo ->
-                        if (isDemo) {
-                            currentScreen = Screen.ActiveWalk(ghostWalkId = ghostWalkId, isDemo = true)
-                        } else {
-                            val fineLocationGranted = ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.ACCESS_FINE_LOCATION
-                            ) == PackageManager.PERMISSION_GRANTED
-
-                            if (fineLocationGranted) {
-                                currentScreen = Screen.ActiveWalk(ghostWalkId = ghostWalkId, isDemo = false)
-                            } else {
-                                pendingWalk = Screen.ActiveWalk(ghostWalkId = ghostWalkId, isDemo = false)
-                                showPermissionDialog = true
-                            }
-                        }
+                        launchWalk(ghostWalkId, isDemo)
+                    },
+                    onPreviewTrack = { walkId ->
+                        currentScreen = Screen.TrackPreview(walkId = walkId)
+                    }
+                )
+            }
+            is Screen.TrackPreview -> {
+                TrackPreviewScreen(
+                    walkId = screen.walkId,
+                    onNavigateBack = {
+                        currentScreen = Screen.Home
+                    },
+                    onStartGhostWalk = { ghostId ->
+                        launchWalk(ghostId, false)
                     }
                 )
             }
