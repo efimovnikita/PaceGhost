@@ -108,3 +108,28 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }
+
+tasks.register("checkLocalization") {
+    group = "verification"
+    description = "Verifies that production source code in src/main contains no untranslated non-English text"
+    doLast {
+        val pattern = Regex("[\\u0400-\\u04FF]")
+        val mainDir = file("src/main")
+        var violations = 0
+        mainDir.walkTopDown().filter { it.extension in listOf("kt", "xml") }.forEach { file ->
+            file.readLines().forEachIndexed { lineIdx, line ->
+                if (pattern.containsMatchIn(line)) {
+                    logger.error("Localization error in ${file.name}:${lineIdx + 1}: ${line.trim()}")
+                    violations++
+                }
+            }
+        }
+        if (violations > 0) {
+            throw GradleException("Found $violations non-English strings in src/main. PaceGhost UI and strings must be strictly English.")
+        }
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn("checkLocalization")
+}
