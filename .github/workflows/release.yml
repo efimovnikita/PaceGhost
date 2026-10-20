@@ -1,0 +1,62 @@
+name: Build & Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Verify Localization & Run Unit Tests
+        run: ./gradlew checkLocalization testDebugUnitTest
+
+      - name: Build Signed Release APK
+        run: ./gradlew assembleRelease
+
+      - name: Determine Tag Name & Prepare Artifacts
+        id: vars
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.2.0")
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          cp app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/PaceGhost-${TAG}.apk"
+
+      - name: Create GitHub Release & Upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: PaceGhost ${{ steps.vars.outputs.tag }}
+          files: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/apk/release/PaceGhost-*.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

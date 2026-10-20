@@ -23,6 +23,7 @@ Minimalist Android activity tracker featuring Ghost Pacing, OLED dark theme, and
 - Unit Tests: `.\gradlew.bat testDebugUnitTest`
 - Debug APK: `.\gradlew.bat assembleDebug`
 - Signed Release APK: `.\gradlew.bat assembleRelease` (outputs to `app/build/outputs/apk/release/app-release.apk`)
+- CI/CD: Automated release pipeline in `.github/workflows/release.yml` triggers on tag push `v*` and manual dispatch to build, test, and publish release APKs with auto-generated changelogs.
 
 ## Emulator & ADB Guidelines
 - ADB Path: `C:\Users\--\AppData\Local\Android\Sdk\platform-tools\adb.exe`
