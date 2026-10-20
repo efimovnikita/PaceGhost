@@ -25,6 +25,13 @@ Minimalist Android activity tracker featuring Ghost Pacing, OLED dark theme, and
 - Signed Release APK: `.\gradlew.bat assembleRelease` (outputs to `app/build/outputs/apk/release/app-release.apk`)
 - CI/CD: Automated release pipeline in `.github/workflows/release.yml` triggers on tag push `v*` and manual dispatch to build, test, and publish release APKs with auto-generated changelogs.
 
+## Release & Versioning Workflow (PowerShell)
+1. Bump `versionCode` and `versionName` in [`build.gradle.kts`](file:///C:/Users/--/source/repos/PaceGhost/app/build.gradle.kts).
+2. Commit release changes: `git commit -am "chore(release): bump version to X.Y.Z"`
+3. Tag and push to trigger automated release build:
+   `git tag -a vX.Y.Z -m "Release vX.Y.Z" ; git push origin main ; git push origin vX.Y.Z`
+4. The CI/CD pipeline will automatically verify localization, run unit tests, compile the signed APK, and publish the release on GitHub.
+
 ## Emulator & ADB Guidelines
 - ADB Path: `C:\Users\--\AppData\Local\Android\Sdk\platform-tools\adb.exe`
 - Always prefix ADB commands with device wait: `& "C:\Users\--\AppData\Local\Android\Sdk\platform-tools\adb.exe" wait-for-device ; ...`
