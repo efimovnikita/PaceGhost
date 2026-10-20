@@ -557,24 +557,30 @@ class WalkTrackingService : Service() {
     }
 
     private fun checkAndTriggerFeedback(result: GhostComparisonResult) {
+        if (!voiceGuidanceManager.isVoiceEnabled) {
+            return
+        }
+
         // 1. Vibration
         if (result.shouldVibrateBehind) {
             vibrationManager.vibrateBehind()
         } else if (result.shouldVibrateOvertake) {
             vibrationManager.vibrateOvertake()
+        } else if (result.shouldVibrateAheadReminder) {
+            vibrationManager.vibrateAheadReminder()
+        } else if (result.shouldVibrateOffRoute) {
+            vibrationManager.vibrateOffRoute()
         }
 
         // 2. Voice Guidance
-        if (voiceGuidanceManager.isVoiceEnabled) {
-            if (result.shouldSpeakBehind) {
-                voiceGuidanceManager.speakBehind()
-            } else if (result.shouldSpeakOvertake) {
-                voiceGuidanceManager.speakOvertake()
-            } else if (result.shouldSpeakAheadReminder) {
-                voiceGuidanceManager.speakAheadReminder()
-            } else if (result.shouldSpeakOffRoute) {
-                voiceGuidanceManager.speakOffRoute()
-            }
+        if (result.shouldSpeakBehind) {
+            voiceGuidanceManager.speakBehind()
+        } else if (result.shouldSpeakOvertake) {
+            voiceGuidanceManager.speakOvertake()
+        } else if (result.shouldSpeakAheadReminder) {
+            voiceGuidanceManager.speakAheadReminder()
+        } else if (result.shouldSpeakOffRoute) {
+            voiceGuidanceManager.speakOffRoute()
         }
     }
 

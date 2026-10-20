@@ -16,7 +16,6 @@ class GhostEngine(
         const val OFF_ROUTE_THRESHOLD_METERS = 60.0
         const val BEHIND_TIME_THRESHOLD_SECONDS = 30L
         const val AHEAD_TIME_THRESHOLD_SECONDS = -15L
-        const val BEHIND_VIBRATION_COOLDOWN_SECONDS = 60L
         const val DEFAULT_BEHIND_VOICE_COOLDOWN_SECONDS = 60L
         const val DEFAULT_AHEAD_VOICE_ENABLED = true
         const val DEFAULT_AHEAD_REMINDER_COOLDOWN_SECONDS = 180L
@@ -28,9 +27,8 @@ class GhostEngine(
 
     private var route: List<TrackPoint> = prepareRoute(ghostRoute)
     private var lastMatchedSegmentIndex: Int = 0
-    private var lastBehindVibrationElapsedSeconds: Long = -1000L
-    private var lastBehindVoiceElapsedSeconds: Long = -1000L
-    private var lastAheadVoiceElapsedSeconds: Long = -1000L
+    private var lastBehindAlertElapsedSeconds: Long = -1000L
+    private var lastAheadAlertElapsedSeconds: Long = -1000L
     private var hasSpokenOffRoute: Boolean = false
     private var previousStatus: GhostStatus = GhostStatus.NO_GHOST
     private var wasBehind: Boolean = false
@@ -54,9 +52,8 @@ class GhostEngine(
 
     fun reset() {
         lastMatchedSegmentIndex = 0
-        lastBehindVibrationElapsedSeconds = -1000L
-        lastBehindVoiceElapsedSeconds = -1000L
-        lastAheadVoiceElapsedSeconds = -1000L
+        lastBehindAlertElapsedSeconds = -1000L
+        lastAheadAlertElapsedSeconds = -1000L
         hasSpokenOffRoute = false
         previousStatus = GhostStatus.NO_GHOST
         wasBehind = false
@@ -112,6 +109,13 @@ class GhostEngine(
                 totalGhostMeters = totalGhostMeters,
                 ghostLat = route[0].lat,
                 ghostLon = route[0].lon,
+                shouldVibrateBehind = false,
+                shouldVibrateOvertake = false,
+                shouldVibrateAheadReminder = false,
+                shouldVibrateOffRoute = speakOff,
+                shouldSpeakBehind = false,
+                shouldSpeakOvertake = false,
+                shouldSpeakAheadReminder = false,
                 shouldSpeakOffRoute = speakOff
             )
         }
@@ -166,6 +170,8 @@ class GhostEngine(
                 ghostLon = ghostAtTime.lon,
                 shouldVibrateBehind = false,
                 shouldVibrateOvertake = false,
+                shouldVibrateAheadReminder = false,
+                shouldVibrateOffRoute = shouldSpeakOff,
                 shouldSpeakBehind = false,
                 shouldSpeakOvertake = false,
                 shouldSpeakAheadReminder = false,
@@ -196,39 +202,36 @@ class GhostEngine(
         // 7. Trigger flags
         var shouldVibrateBehind = false
         var shouldVibrateOvertake = false
+        var shouldVibrateAheadReminder = false
+        var shouldVibrateOffRoute = false
         var shouldSpeakBehind = false
         var shouldSpeakOvertake = false
         var shouldSpeakAheadReminder = false
 
         if (status == GhostStatus.BEHIND) {
-            if (lastBehindVibrationElapsedSeconds < 0L ||
-                (elapsedSeconds - lastBehindVibrationElapsedSeconds >= BEHIND_VIBRATION_COOLDOWN_SECONDS)
+            if (lastBehindAlertElapsedSeconds < 0L ||
+                (elapsedSeconds - lastBehindAlertElapsedSeconds >= behindVoiceCooldownSeconds)
             ) {
                 shouldVibrateBehind = true
-                lastBehindVibrationElapsedSeconds = elapsedSeconds
-            }
-            if (lastBehindVoiceElapsedSeconds < 0L ||
-                (elapsedSeconds - lastBehindVoiceElapsedSeconds >= behindVoiceCooldownSeconds)
-            ) {
                 shouldSpeakBehind = true
-                lastBehindVoiceElapsedSeconds = elapsedSeconds
+                lastBehindAlertElapsedSeconds = elapsedSeconds
             }
             wasBehind = true
         } else if (status == GhostStatus.AHEAD) {
             val isOvertake = wasBehind || previousStatus == GhostStatus.BEHIND || previousStatus == GhostStatus.ON_PACE
-            if (isOvertake) {
-                shouldVibrateOvertake = true
-                if (isAheadVoiceEnabled) {
+            if (isAheadVoiceEnabled) {
+                if (isOvertake) {
+                    shouldVibrateOvertake = true
                     shouldSpeakOvertake = true
-                }
-                lastAheadVoiceElapsedSeconds = elapsedSeconds
-            } else {
-                if (isAheadVoiceEnabled &&
-                    lastAheadVoiceElapsedSeconds >= 0L &&
-                    (elapsedSeconds - lastAheadVoiceElapsedSeconds >= aheadVoiceCooldownSeconds)
-                ) {
-                    shouldSpeakAheadReminder = true
-                    lastAheadVoiceElapsedSeconds = elapsedSeconds
+                    lastAheadAlertElapsedSeconds = elapsedSeconds
+                } else {
+                    if (lastAheadAlertElapsedSeconds >= 0L &&
+                        (elapsedSeconds - lastAheadAlertElapsedSeconds >= aheadVoiceCooldownSeconds)
+                    ) {
+                        shouldSpeakAheadReminder = true
+                        shouldVibrateAheadReminder = true
+                        lastAheadAlertElapsedSeconds = elapsedSeconds
+                    }
                 }
             }
             wasBehind = false
@@ -249,6 +252,8 @@ class GhostEngine(
             ghostLon = ghostAtTime.lon,
             shouldVibrateBehind = shouldVibrateBehind,
             shouldVibrateOvertake = shouldVibrateOvertake,
+            shouldVibrateAheadReminder = shouldVibrateAheadReminder,
+            shouldVibrateOffRoute = shouldVibrateOffRoute,
             shouldSpeakBehind = shouldSpeakBehind,
             shouldSpeakOvertake = shouldSpeakOvertake,
             shouldSpeakAheadReminder = shouldSpeakAheadReminder,

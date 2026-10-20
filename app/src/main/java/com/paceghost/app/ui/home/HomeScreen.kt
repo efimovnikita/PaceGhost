@@ -191,14 +191,14 @@ fun HomeScreen(
                         )
                     }
 
-                    // Voice Settings Button
+                    // Pace Alert Settings Button
                     IconButton(
                         onClick = { showVoiceSettingsDialog = true },
                         modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Settings,
-                            contentDescription = "Voice Guidance Settings",
+                            contentDescription = "Pace Alert Settings",
                             tint = TextPrimary,
                             modifier = Modifier.size(20.dp)
                         )

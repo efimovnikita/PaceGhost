@@ -166,7 +166,7 @@ fun ActiveWalkScreen(
                             } else {
                                 Icons.AutoMirrored.Filled.VolumeOff
                             },
-                            contentDescription = if (walkState.isVoiceGuidanceEnabled) "Disable voice guidance" else "Enable voice guidance",
+                            contentDescription = if (walkState.isVoiceGuidanceEnabled) "Mute pace alerts" else "Unmute pace alerts",
                             tint = if (walkState.isVoiceGuidanceEnabled) CyanGhost else TextDisabled
                         )
                     }

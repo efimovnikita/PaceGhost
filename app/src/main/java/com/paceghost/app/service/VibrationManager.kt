@@ -76,6 +76,52 @@ class VibrationManager(
         } catch (_: Exception) {}
     }
 
+    /**
+     * Single reminder pulse (180ms).
+     * Triggered periodically when the user remains ahead of the ghost.
+     */
+    fun vibrateAheadReminder() {
+        val message = "Ahead pace: reminder vibration"
+        emitHapticEvent(message)
+
+        val vib = vibrator ?: return
+        if (!vib.hasVibrator()) return
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val effect = VibrationEffect.createOneShot(180, VibrationEffect.DEFAULT_AMPLITUDE)
+                vib.vibrate(effect)
+            } else {
+                @Suppress("DEPRECATION")
+                vib.vibrate(180)
+            }
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * Triple warning pulse: 150ms on, 100ms pause, 150ms on, 100ms pause, 250ms on.
+     * Triggered when the user strays off the designated route.
+     */
+    fun vibrateOffRoute() {
+        val message = "Off route: warning vibration"
+        emitHapticEvent(message)
+
+        val vib = vibrator ?: return
+        if (!vib.hasVibrator()) return
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val timings = longArrayOf(0, 150, 100, 150, 100, 250)
+                val amplitudes = intArrayOf(0, 200, 0, 200, 0, 255)
+                val effect = VibrationEffect.createWaveform(timings, amplitudes, -1)
+                vib.vibrate(effect)
+            } else {
+                @Suppress("DEPRECATION")
+                vib.vibrate(longArrayOf(0, 150, 100, 150, 100, 250), -1)
+            }
+        } catch (_: Exception) {}
+    }
+
     private fun emitHapticEvent(message: String) {
         scope.launch {
             _hapticFeedbackEvents.emit(message)

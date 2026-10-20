@@ -64,7 +64,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         voicePrefs.saveVoiceSettings(settings)
         _voiceSettings.value = settings
         viewModelScope.launch {
-            _userMessage.emit("Voice guidance settings saved")
+            _userMessage.emit("Pace alert settings saved")
         }
     }
 

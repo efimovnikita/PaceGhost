@@ -62,24 +62,32 @@ fun VoiceSettingsDialog(
         containerColor = DarkSurface,
         shape = RoundedCornerShape(24.dp),
         title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.RecordVoiceOver,
-                    contentDescription = null,
-                    tint = CyanGhost,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.RecordVoiceOver,
+                        contentDescription = null,
+                        tint = CyanGhost,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Pace Alerts",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = TextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Voice Guidance",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    ),
-                    color = TextPrimary
+                    text = "Voice & vibration alerts",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
                 )
             }
         },
@@ -108,7 +116,7 @@ fun VoiceSettingsDialog(
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Alert frequency: \"Catch up, lagging behind ghost\"",
+                    text = "Alert frequency (voice & vibration): \"Catch up, lagging behind ghost\"",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )
@@ -168,7 +176,7 @@ fun VoiceSettingsDialog(
                             color = TextPrimary
                         )
                         Text(
-                            text = "Voice alerts for overtaking and high pace",
+                            text = "Voice & vibration alerts for overtaking and pace",
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
