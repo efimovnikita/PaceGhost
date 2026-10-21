@@ -26,9 +26,12 @@ import com.paceghost.app.data.repository.WalkRepositoryImpl
 import com.paceghost.app.domain.engine.AutoPauseDetector
 import com.paceghost.app.domain.engine.GeoMath
 import com.paceghost.app.domain.engine.GhostEngine
+import com.paceghost.app.domain.engine.KalmanLocationFilter
 import com.paceghost.app.domain.engine.PaceCalculator
+import com.paceghost.app.domain.engine.PedestrianDeadReckoningEngine
 import com.paceghost.app.domain.model.GhostComparisonResult
 import com.paceghost.app.domain.model.GhostStatus
+import com.paceghost.app.domain.model.GpsQuality
 import com.paceghost.app.domain.model.TrackPoint
 import com.paceghost.app.domain.model.VoiceSettings
 import com.paceghost.app.domain.model.WalkState
@@ -82,6 +85,12 @@ class WalkTrackingService : Service() {
     lateinit var stepSensorManager: StepSensorManager
         private set
 
+    lateinit var orientationSensorManager: OrientationSensorManager
+        private set
+
+    val kalmanFilter = KalmanLocationFilter()
+    val pdrEngine = PedestrianDeadReckoningEngine()
+
     lateinit var notificationHelper: NotificationHelper
         private set
 
@@ -100,6 +109,7 @@ class WalkTrackingService : Service() {
     private var vibrationObservationJob: Job? = null
     private var voiceObservationJob: Job? = null
     private var lastRecordedLocation: Location? = null
+    private var lastGpsUpdateTimeMs: Long = 0L
     private var isLocationUpdatesActive = false
     private var wakeLock: PowerManager.WakeLock? = null
     private var consecutiveRejectedSpikes = 0
@@ -151,6 +161,7 @@ class WalkTrackingService : Service() {
         vibrationManager = VibrationManager(applicationContext, serviceScope)
         voiceGuidanceManager = VoiceGuidanceManager(applicationContext, serviceScope)
         stepSensorManager = StepSensorManager(applicationContext)
+        orientationSensorManager = OrientationSensorManager(this)
         notificationHelper = NotificationHelper(applicationContext)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
@@ -335,6 +346,7 @@ class WalkTrackingService : Service() {
 
     private fun startRealMode() {
         acquireWakeLock()
+        orientationSensorManager.start()
         stepSensorManager.start()
 
         val hasFineLocation = ContextCompat.checkSelfPermission(
@@ -372,6 +384,7 @@ class WalkTrackingService : Service() {
             fusedLocationClient.removeLocationUpdates(locationCallback)
             isLocationUpdatesActive = false
         }
+        orientationSensorManager.stop()
         stepSensorManager.stop()
         releaseWakeLock()
     }
@@ -436,7 +449,9 @@ class WalkTrackingService : Service() {
             stepCount = point.stepCount,
             currentSpeedKmh = speedKmh.toDouble(),
             ghostComparison = ghostResult,
-            currentPoints = updatedPoints
+            currentPoints = updatedPoints,
+            gpsQuality = GpsQuality.GOOD,
+            currentAccuracyMeters = 5f
         )
     }
 
@@ -447,34 +462,32 @@ class WalkTrackingService : Service() {
             return
         }
 
-        // 1. Accuracy filter (discard fixes worse than 40m)
-        if (location.hasAccuracy() && location.accuracy > 40f) {
-            AppLogger.w("Location", "Dropped low accuracy: ${location.accuracy}m (lat=${location.latitude}, lon=${location.longitude})")
-            return
+        val lastPoint = currentState.currentPoints.lastOrNull()
+        val currentSteps = stepSensorManager.stepCountFlow.value
+        val deltaSteps = if (lastPoint != null) {
+            (currentSteps - lastPoint.stepCount).coerceAtLeast(0)
+        } else {
+            0
         }
 
-        val prevLoc = lastRecordedLocation
         var addedDistance = 0.0
         var timeDeltaSec = 0.0
 
-        if (prevLoc != null) {
+        if (lastPoint != null) {
             addedDistance = GeoMath.haversineDistance(
-                prevLoc.latitude,
-                prevLoc.longitude,
+                lastPoint.lat,
+                lastPoint.lon,
                 location.latitude,
                 location.longitude
             )
-            val timeDeltaMs = location.time - prevLoc.time
+            val timeDeltaMs = location.time - lastPoint.timestamp
             timeDeltaSec = if (timeDeltaMs > 0) timeDeltaMs / 1000.0 else 0.0
 
-            val intervalSpeedMps = if (timeDeltaSec > 0.1) addedDistance / timeDeltaSec else 0.0
-            val isAbnormalSpeed = (timeDeltaSec > 0.1 && intervalSpeedMps > 10.0 && addedDistance > 30.0)
-
-            if (isAbnormalSpeed) {
+            if (!pdrEngine.isKinematicallyPlausible(addedDistance, deltaSteps, timeDeltaSec)) {
                 consecutiveRejectedSpikes++
                 AppLogger.w(
                     "Location",
-                    "Spike detected: dist=${String.format(Locale.US, "%.1f", addedDistance)}m, dt=${String.format(Locale.US, "%.1f", timeDeltaSec)}s, speed=${String.format(Locale.US, "%.1f", intervalSpeedMps)}m/s, consecutive=$consecutiveRejectedSpikes"
+                    "Spike rejected by kinematic gate: dist=${String.format(Locale.US, "%.1f", addedDistance)}m, steps=$deltaSteps, dt=${String.format(Locale.US, "%.1f", timeDeltaSec)}s, consecutive=$consecutiveRejectedSpikes"
                 )
 
                 if (consecutiveRejectedSpikes < 3 && timeDeltaSec < 45.0) {
@@ -493,28 +506,44 @@ class WalkTrackingService : Service() {
         }
 
         lastRecordedLocation = location
+        lastGpsUpdateTimeMs = System.currentTimeMillis()
+
+        kalmanFilter.update(location.latitude, location.longitude, location.accuracy, location.time)
+
+        if (location.accuracy <= 20f) {
+            pdrEngine.onGpsDistanceProgress(addedDistance, deltaSteps)
+        }
+
+        val gpsQuality = when {
+            location.accuracy <= 15f -> GpsQuality.GOOD
+            location.accuracy <= 45f -> GpsQuality.WEAK
+            else -> GpsQuality.PDR_ACTIVE
+        }
 
         val newDistance = currentState.distanceMeters + addedDistance
-        val speedKmh = if (location.hasSpeed()) location.speed * 3.6f else 0f
+        val filteredSpeed = if (kalmanFilter.isInitialized) kalmanFilter.filteredSpeed else location.speed
+        val speedKmh = if (filteredSpeed > 0f) filteredSpeed * 3.6f else (if (location.hasSpeed()) location.speed * 3.6f else 0f)
         val isAutoPaused = autoPauseDetector.update(speedKmh, currentState.elapsedSeconds)
 
         stepSensorManager.onDistanceUpdated(newDistance)
 
         val trackPoint = TrackPoint(
-            lat = location.latitude,
-            lon = location.longitude,
+            lat = kalmanFilter.filteredLat,
+            lon = kalmanFilter.filteredLon,
             altitude = location.altitude,
             timestamp = location.time,
             elapsedSeconds = currentState.elapsedSeconds,
             cumulativeDistance = newDistance,
-            speed = location.speed,
-            stepCount = currentState.stepCount
+            speed = filteredSpeed,
+            stepCount = currentSteps,
+            isPdr = false,
+            accuracy = kalmanFilter.filteredAccuracy
         )
 
         val updatedPoints = currentState.currentPoints + trackPoint
 
         val ghostResult = if (!isAutoPaused && currentState.ghostPoints.isNotEmpty()) {
-            ghostEngine.compare(location.latitude, location.longitude, currentState.elapsedSeconds)
+            ghostEngine.compare(kalmanFilter.filteredLat, kalmanFilter.filteredLon, currentState.elapsedSeconds)
         } else if (isAutoPaused) {
             currentState.ghostComparison.copy(status = GhostStatus.PAUSED)
         } else {
@@ -526,14 +555,17 @@ class WalkTrackingService : Service() {
         _walkState.value = currentState.copy(
             isAutoPaused = isAutoPaused,
             distanceMeters = newDistance,
+            stepCount = currentSteps,
             currentSpeedKmh = speedKmh.toDouble(),
             ghostComparison = ghostResult,
-            currentPoints = updatedPoints
+            currentPoints = updatedPoints,
+            gpsQuality = gpsQuality,
+            currentAccuracyMeters = kalmanFilter.filteredAccuracy
         )
 
         AppLogger.d(
             "Location",
-            "Accepted: lat=${String.format(Locale.US, "%.5f", location.latitude)}, lon=${String.format(Locale.US, "%.5f", location.longitude)}, acc=${String.format(Locale.US, "%.1f", location.accuracy)}m, dt=${String.format(Locale.US, "%.1f", timeDeltaSec)}s, added=${String.format(Locale.US, "%.1f", addedDistance)}m, total=${String.format(Locale.US, "%.1f", newDistance)}m, autoPaused=$isAutoPaused"
+            "Accepted: lat=${String.format(Locale.US, "%.5f", kalmanFilter.filteredLat)}, lon=${String.format(Locale.US, "%.5f", kalmanFilter.filteredLon)}, acc=${String.format(Locale.US, "%.1f", kalmanFilter.filteredAccuracy)}m, quality=$gpsQuality, added=${String.format(Locale.US, "%.1f", addedDistance)}m, total=${String.format(Locale.US, "%.1f", newDistance)}m"
         )
     }
 
@@ -619,12 +651,75 @@ class WalkTrackingService : Service() {
     private fun observeStepSensor() {
         serviceScope.launch {
             stepSensorManager.stepCountFlow.collect { steps ->
-                val current = _walkState.value
-                if (current.isTracking) {
-                    _walkState.value = current.copy(stepCount = steps)
-                }
+                handleStepCountUpdate(steps)
             }
         }
+    }
+
+    private fun handleStepCountUpdate(steps: Int) {
+        val currentState = _walkState.value
+        if (!currentState.isTracking) return
+
+        if (currentState.isDemoMode || currentState.isPaused || currentState.isAutoPaused) {
+            _walkState.value = currentState.copy(stepCount = steps)
+            return
+        }
+
+        val lastPoint = currentState.currentPoints.lastOrNull()
+        if (lastPoint == null) {
+            _walkState.value = currentState.copy(stepCount = steps)
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val timeSinceLastGps = if (lastGpsUpdateTimeMs > 0L) now - lastGpsUpdateTimeMs else Long.MAX_VALUE
+        val isAccuracyDegraded = currentState.currentAccuracyMeters > 45f
+        val isGpsStale = timeSinceLastGps > 4500L
+
+        if (isGpsStale || isAccuracyDegraded) {
+            val deltaSteps = steps - lastPoint.stepCount
+            if (deltaSteps >= 1) {
+                val addedDistance = deltaSteps * pdrEngine.currentStrideLengthMeters
+                val newDistance = currentState.distanceMeters + addedDistance
+                val pdrTrackPoint = pdrEngine.propagatePoint(
+                    lastPoint = lastPoint,
+                    deltaSteps = deltaSteps,
+                    headingAzimuthDeg = orientationSensorManager.currentHeading,
+                    timestampMs = now
+                ).copy(
+                    cumulativeDistance = newDistance,
+                    stepCount = steps,
+                    isPdr = true,
+                    accuracy = 25f
+                )
+
+                val updatedPoints = currentState.currentPoints + pdrTrackPoint
+                val ghostResult = if (currentState.ghostPoints.isNotEmpty()) {
+                    ghostEngine.compare(pdrTrackPoint.lat, pdrTrackPoint.lon, currentState.elapsedSeconds)
+                } else {
+                    currentState.ghostComparison
+                }
+
+                checkAndTriggerFeedback(ghostResult)
+
+                _walkState.value = currentState.copy(
+                    distanceMeters = newDistance,
+                    stepCount = steps,
+                    gpsQuality = GpsQuality.PDR_ACTIVE,
+                    currentAccuracyMeters = 25f,
+                    ghostComparison = ghostResult,
+                    currentPoints = updatedPoints
+                )
+
+                AppLogger.d(
+                    "PDR",
+                    "PDR step propagated: delta=$deltaSteps, totalSteps=$steps, heading=${String.format(Locale.US, "%.1f", orientationSensorManager.currentHeading)}, added=${String.format(Locale.US, "%.2f", addedDistance)}m, total=${String.format(Locale.US, "%.1f", newDistance)}m"
+                )
+                return
+            }
+        }
+
+        _walkState.value = currentState.copy(stepCount = steps)
     }
 
     private fun updateNotification() {
@@ -640,7 +735,11 @@ class WalkTrackingService : Service() {
 
     private fun resetTrackingData() {
         lastRecordedLocation = null
+        lastGpsUpdateTimeMs = 0L
         consecutiveRejectedSpikes = 0
+        kalmanFilter.reset()
+        pdrEngine.reset()
+        orientationSensorManager.reset()
         stepSensorManager.reset()
         autoPauseDetector.reset()
         ghostEngine.reset()

@@ -15,5 +15,7 @@ data class WalkState(
     val currentPoints: List<TrackPoint> = emptyList(),
     val ghostPoints: List<TrackPoint> = emptyList(),
     val recentVibrationMessage: String? = null,
-    val recentVoiceMessage: String? = null
+    val recentVoiceMessage: String? = null,
+    val gpsQuality: GpsQuality = GpsQuality.GOOD,
+    val currentAccuracyMeters: Float = 0f
 )

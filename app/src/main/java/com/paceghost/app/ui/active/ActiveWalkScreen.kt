@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.paceghost.app.domain.model.GpsQuality
 import com.paceghost.app.ui.active.components.DemoControlsOverlay
 import com.paceghost.app.ui.active.components.HapticBadge
 import com.paceghost.app.ui.active.components.OsmMapView
@@ -108,6 +109,8 @@ fun ActiveWalkScreen(
             ghostPoints = walkState.ghostPoints,
             ghostLat = walkState.ghostComparison.ghostLat,
             ghostLon = walkState.ghostComparison.ghostLon,
+            gpsQuality = walkState.gpsQuality,
+            accuracyMeters = walkState.currentAccuracyMeters,
             autoCenter = true,
             modifier = Modifier.fillMaxSize()
         )
@@ -125,12 +128,13 @@ fun ActiveWalkScreen(
                             text = if (walkState.isDemoMode) "PaceGhost: Demo" else "PaceGhost: Walk",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
+                                fontSize = 16.sp
                             ),
+                            maxLines = 1,
                             color = TextPrimary
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
                         if (walkState.isDemoMode) {
-                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "SIMULATOR",
                                 style = MaterialTheme.typography.labelSmall.copy(
@@ -142,6 +146,46 @@ fun ActiveWalkScreen(
                                     .background(DarkSurfaceVariant, CircleShape)
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             )
+                        } else {
+                            val (dotColor, badgeText, badgeBg) = when (walkState.gpsQuality) {
+                                GpsQuality.GOOD -> Triple(
+                                    Color(0xFF39FF14),
+                                    "GPS: Good",
+                                    Color(0xFF0D2411)
+                                )
+                                GpsQuality.WEAK -> Triple(
+                                    Color(0xFFFFD700),
+                                    "GPS: Weak",
+                                    Color(0xFF2B220D)
+                                )
+                                GpsQuality.PDR_ACTIVE -> Triple(
+                                    CyanGhost,
+                                    "PDR Mode",
+                                    Color(0xFF0A2228)
+                                )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .background(badgeBg, RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(dotColor, CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = badgeText,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp
+                                    ),
+                                    color = dotColor,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 },

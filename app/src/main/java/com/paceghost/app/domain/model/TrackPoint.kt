@@ -8,5 +8,7 @@ data class TrackPoint(
     val elapsedSeconds: Long = 0,
     val cumulativeDistance: Double = 0.0,
     val speed: Float = 0f,
-    val stepCount: Int = 0
+    val stepCount: Int = 0,
+    val isPdr: Boolean = false,
+    val accuracy: Float = 0f
 )

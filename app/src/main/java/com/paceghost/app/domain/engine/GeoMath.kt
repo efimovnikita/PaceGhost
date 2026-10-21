@@ -103,4 +103,39 @@ object GeoMath {
 
         return result
     }
+
+    /**
+     * Calculates the destination coordinates starting from [lat], [lon], traveling [distanceMeters]
+     * along initial bearing [bearingDeg] (clockwise from North, 0..360).
+     *
+     * @return Pair of destination (latitude, longitude) in degrees.
+     */
+    fun forwardProjection(
+        lat: Double,
+        lon: Double,
+        distanceMeters: Double,
+        bearingDeg: Double
+    ): Pair<Double, Double> {
+        if (distanceMeters == 0.0) return Pair(lat, lon)
+        val delta = distanceMeters / EARTH_RADIUS_METERS
+        val theta = Math.toRadians(bearingDeg)
+        val phi1 = Math.toRadians(lat)
+        val lambda1 = Math.toRadians(lon)
+
+        val sinPhi1 = sin(phi1)
+        val cosPhi1 = cos(phi1)
+        val sinDelta = sin(delta)
+        val cosDelta = cos(delta)
+
+        val sinPhi2 = sinPhi1 * cosDelta + cosPhi1 * sinDelta * cos(theta)
+        val phi2 = kotlin.math.asin(sinPhi2.coerceIn(-1.0, 1.0))
+
+        val y = sin(theta) * sinDelta * cosPhi1
+        val x = cosDelta - sinPhi1 * sinPhi2
+        val lambda2 = lambda1 + atan2(y, x)
+
+        val resLat = Math.toDegrees(phi2)
+        val resLon = ((Math.toDegrees(lambda2) + 540.0) % 360.0) - 180.0
+        return Pair(resLat, resLon)
+    }
 }
