@@ -1,11 +1,61 @@
 package com.paceghost.app.data.gpx
 
+import android.content.Context
 import com.paceghost.app.data.local.entity.TrackPointEntity
 import com.paceghost.app.data.local.entity.WalkEntity
+import java.io.File
+import java.text.SimpleDateFormat
 import java.time.Instant
+import java.util.Date
 import java.util.Locale
 
 object GpxExporter {
+
+    /**
+     * Generates a safe, sanitized filename for exporting a walk in GPX format.
+     * Format: "${safeTitle}_${yyyyMMdd_HHmm}.gpx"
+     */
+    fun generateGpxFileName(title: String, startTime: Long): String {
+        val sanitized = title.trim()
+            .replace(Regex("[^\\p{L}\\p{Nd}_-]"), "_")
+            .replace(Regex("_+"), "_")
+            .trim('_')
+        val safeTitle = if (sanitized.isBlank()) "Walk" else sanitized
+        val dateStr = SimpleDateFormat("yyyyMMdd_HHmm", Locale.US).format(Date(startTime))
+        return "${safeTitle}_${dateStr}.gpx"
+    }
+
+    /**
+     * Exports a walk and its track points to a file in the given output directory.
+     */
+    fun exportToFile(outputDir: File, walk: WalkEntity, points: List<TrackPointEntity>): File {
+        if (!outputDir.exists()) {
+            outputDir.mkdirs()
+        }
+        val fileName = generateGpxFileName(walk.title, walk.startTime)
+        val file = File(outputDir, fileName)
+        val xml = exportToGpx(walk, points)
+        file.writeText(xml, Charsets.UTF_8)
+        return file
+    }
+
+    /**
+     * Exports a walk to the app's cache directory under "gpx/", cleaning up files older than 24h.
+     */
+    fun exportToCache(context: Context, walk: WalkEntity, points: List<TrackPointEntity>): File {
+        val gpxDir = File(context.cacheDir, "gpx")
+        if (gpxDir.exists()) {
+            val now = System.currentTimeMillis()
+            gpxDir.listFiles()?.forEach { oldFile ->
+                if (oldFile.isFile && oldFile.name.endsWith(".gpx")) {
+                    if (now - oldFile.lastModified() > 24 * 60 * 60 * 1000L) {
+                        oldFile.delete()
+                    }
+                }
+            }
+        }
+        return exportToFile(gpxDir, walk, points)
+    }
 
     /**
      * Exports a walk and its track points into a standard GPX 1.1 XML string.

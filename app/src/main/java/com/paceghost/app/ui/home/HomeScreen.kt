@@ -1,5 +1,6 @@
 package com.paceghost.app.ui.home
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -326,17 +327,40 @@ fun HomeScreen(
                         onPreviewTrack = onPreviewTrack,
                         onExportGpx = { id ->
                             scope.launch {
-                                val gpx = viewModel.getGpxContent(id)
-                                if (gpx != null) {
-                                    val sendIntent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        putExtra(Intent.EXTRA_TEXT, gpx)
-                                        type = "text/xml"
+                                when (val result = viewModel.exportWalkToFile(id)) {
+                                    is GpxExportResult.Success -> {
+                                        try {
+                                            val uri = FileProvider.getUriForFile(
+                                                context,
+                                                "${context.packageName}.fileprovider",
+                                                result.file
+                                            )
+                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "application/gpx+xml"
+                                                putExtra(Intent.EXTRA_STREAM, uri)
+                                                putExtra(Intent.EXTRA_SUBJECT, result.title)
+                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
+                                            val chooser = Intent.createChooser(shareIntent, "Share GPX: ${result.title}").apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                            context.startActivity(chooser)
+                                        } catch (_: ActivityNotFoundException) {
+                                            snackbarHostState.showSnackbar("No app found to share GPX file")
+                                        } catch (e: Exception) {
+                                            AppLogger.e("HomeScreen", "Failed to share GPX", e)
+                                            snackbarHostState.showSnackbar("Failed to share GPX: ${e.localizedMessage ?: "Unknown error"}")
+                                        }
                                     }
-                                    val shareIntent = Intent.createChooser(sendIntent, "Export GPX: ${walk.title}")
-                                    context.startActivity(shareIntent)
-                                } else {
-                                    snackbarHostState.showSnackbar("GPX export error")
+                                    is GpxExportResult.NoPoints -> {
+                                        snackbarHostState.showSnackbar("Cannot export walk without GPS track points")
+                                    }
+                                    is GpxExportResult.WalkNotFound -> {
+                                        snackbarHostState.showSnackbar("Walk not found")
+                                    }
+                                    is GpxExportResult.Error -> {
+                                        snackbarHostState.showSnackbar("GPX export error: ${result.message}")
+                                    }
                                 }
                             }
                         },

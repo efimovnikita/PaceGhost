@@ -3,12 +3,14 @@ package com.paceghost.app.ui.home
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.paceghost.app.data.gpx.GpxExporter
 import com.paceghost.app.data.local.AppDatabase
 import com.paceghost.app.data.local.VoiceSettingsPreferences
 import com.paceghost.app.data.local.entity.WalkEntity
 import com.paceghost.app.data.repository.WalkRepository
 import com.paceghost.app.data.repository.WalkRepositoryImpl
 import com.paceghost.app.domain.model.VoiceSettings
+import java.io.File
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -82,4 +84,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun getGpxContent(walkId: Long): String? {
         return repository.exportWalkToGpx(walkId)
     }
+
+    suspend fun exportWalkToFile(walkId: Long): GpxExportResult {
+        return try {
+            val walk = repository.getWalkById(walkId) ?: return GpxExportResult.WalkNotFound
+            val points = repository.getPointsForWalk(walkId)
+            if (points.isEmpty()) {
+                return GpxExportResult.NoPoints
+            }
+            val file = GpxExporter.exportToCache(getApplication(), walk, points)
+            GpxExportResult.Success(file = file, title = walk.title)
+        } catch (e: Exception) {
+            GpxExportResult.Error(e.localizedMessage ?: "Unknown export error")
+        }
+    }
+}
+
+sealed interface GpxExportResult {
+    data class Success(val file: File, val title: String) : GpxExportResult
+    data object NoPoints : GpxExportResult
+    data object WalkNotFound : GpxExportResult
+    data class Error(val message: String) : GpxExportResult
 }

@@ -8,7 +8,9 @@ import com.paceghost.app.data.local.entity.WalkEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class GpxTest {
 
@@ -98,5 +100,45 @@ class GpxTest {
         val (importedWalk, importedPoints) = GpxImporter.importFromGpx(xml)
         assertEquals(walk.title, importedWalk.title)
         assertEquals(2, importedPoints.size)
+    }
+
+    @get:Rule
+    val tempFolder = TemporaryFolder()
+
+    @Test
+    fun `generateGpxFileName sanitizes special characters and preserves valid alphanumeric text`() {
+        val timestamp = 1729340000000L // Oct 19, 2024
+
+        // Standard title
+        val fileName1 = GpxExporter.generateGpxFileName("Morning Walk", timestamp)
+        assertTrue("Expected starting with Morning_Walk, got $fileName1", fileName1.startsWith("Morning_Walk_"))
+        assertTrue("Expected .gpx suffix, got $fileName1", fileName1.endsWith(".gpx"))
+        assertTrue("Expected timestamp format, got $fileName1", fileName1.matches(Regex("Morning_Walk_\\d{8}_\\d{4}\\.gpx")))
+
+        // Title with invalid filesystem characters and Cyrillic
+        val fileName2 = GpxExporter.generateGpxFileName("Вечерняя Прогулка 21/10/2026: парк! #1", timestamp)
+        assertTrue("Expected sanitized Cyrillic, got $fileName2", fileName2.startsWith("Вечерняя_Прогулка_21_10_2026_парк_1_"))
+        assertTrue("Expected .gpx suffix, got $fileName2", fileName2.endsWith(".gpx"))
+
+        // Blank or only symbols fallback
+        val fileName3 = GpxExporter.generateGpxFileName("   !@#$%^&*()   ", timestamp)
+        assertTrue("Expected fallback to Walk_, got $fileName3", fileName3.startsWith("Walk_"))
+        assertTrue("Expected .gpx suffix, got $fileName3", fileName3.endsWith(".gpx"))
+    }
+
+    @Test
+    fun `exportToFile writes valid GPX file to directory`() {
+        val (walk, points) = DemoDataGenerator.createDemoWalkData(walkId = 5L, startTimeMs = 1729340000000L)
+        val targetDir = tempFolder.newFolder("gpx_test")
+
+        val file = GpxExporter.exportToFile(targetDir, walk, points)
+        assertTrue("Exported file must exist", file.exists())
+        assertTrue("Exported file length should be > 0", file.length() > 0)
+        assertTrue("Filename should contain title", file.name.contains("Victory_Park_Demo_Track"))
+        assertTrue("Filename should end with .gpx", file.name.endsWith(".gpx"))
+
+        val content = file.readText()
+        assertTrue("Content must be valid GPX XML", content.contains("<gpx version=\"1.1\""))
+        assertTrue("Content must contain track points", content.contains("<trkpt"))
     }
 }
