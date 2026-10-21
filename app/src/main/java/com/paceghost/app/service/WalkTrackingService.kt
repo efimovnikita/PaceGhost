@@ -113,6 +113,7 @@ class WalkTrackingService : Service() {
     private var isLocationUpdatesActive = false
     private var wakeLock: PowerManager.WakeLock? = null
     private var consecutiveRejectedSpikes = 0
+    private var wasInPdrMode = false
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -462,6 +463,17 @@ class WalkTrackingService : Service() {
             return
         }
 
+        // GPS Suppression / Jamming Detection: Accuracy worse than 35m
+        if (location.accuracy > 35f) {
+            wasInPdrMode = true
+            _walkState.value = currentState.copy(
+                gpsQuality = GpsQuality.PDR_ACTIVE,
+                currentAccuracyMeters = location.accuracy
+            )
+            AppLogger.d("Location", "Degraded GPS ignored (jammed/weak): acc=${location.accuracy}m")
+            return
+        }
+
         val lastPoint = currentState.currentPoints.lastOrNull()
         val currentSteps = stepSensorManager.stepCountFlow.value
         val deltaSteps = if (lastPoint != null) {
@@ -470,66 +482,112 @@ class WalkTrackingService : Service() {
             0
         }
 
-        var addedDistance = 0.0
-        var timeDeltaSec = 0.0
+        val timeDeltaMs = if (lastPoint != null) location.time - lastPoint.timestamp else 0L
+        val timeDeltaSec = if (timeDeltaMs > 0) timeDeltaMs / 1000.0 else 0.0
 
-        if (lastPoint != null) {
-            addedDistance = GeoMath.haversineDistance(
-                lastPoint.lat,
-                lastPoint.lon,
-                location.latitude,
-                location.longitude
-            )
-            val timeDeltaMs = location.time - lastPoint.timestamp
-            timeDeltaSec = if (timeDeltaMs > 0) timeDeltaMs / 1000.0 else 0.0
-
-            if (!pdrEngine.isKinematicallyPlausible(addedDistance, deltaSteps, timeDeltaSec)) {
-                consecutiveRejectedSpikes++
-                AppLogger.w(
-                    "Location",
-                    "Spike rejected by kinematic gate: dist=${String.format(Locale.US, "%.1f", addedDistance)}m, steps=$deltaSteps, dt=${String.format(Locale.US, "%.1f", timeDeltaSec)}s, consecutive=$consecutiveRejectedSpikes"
+        val isRecoveryFromPdr = wasInPdrMode
+        if (isRecoveryFromPdr) {
+            if (lastPoint != null) {
+                val directDist = GeoMath.haversineDistance(
+                    lastPoint.lat,
+                    lastPoint.lon,
+                    location.latitude,
+                    location.longitude
                 )
-
-                if (consecutiveRejectedSpikes < 3 && timeDeltaSec < 45.0) {
-                    return
-                } else {
-                    AppLogger.i(
+                if (!pdrEngine.isKinematicallyPlausible(directDist, deltaSteps, timeDeltaSec)) {
+                    consecutiveRejectedSpikes++
+                    AppLogger.w(
                         "Location",
-                        "Re-anchoring after spike/gap recovery: consecutive=$consecutiveRejectedSpikes, dt=${String.format(Locale.US, "%.1f", timeDeltaSec)}s"
+                        "PDR recovery fix rejected by kinematic gate: dist=${String.format(Locale.US, "%.1f", directDist)}m, steps=$deltaSteps, consecutive=$consecutiveRejectedSpikes"
                     )
-                    consecutiveRejectedSpikes = 0
-                    addedDistance = 0.0
+                    if (consecutiveRejectedSpikes < 5 && timeDeltaSec < 60.0) {
+                        return
+                    }
                 }
-            } else {
-                consecutiveRejectedSpikes = 0
             }
+            consecutiveRejectedSpikes = 0
+            kalmanFilter.reset()
+            kalmanFilter.update(location.latitude, location.longitude, location.accuracy, location.time)
+            wasInPdrMode = false
+            AppLogger.i("Location", "GPS recovered from PDR/blackout, re-anchored at lat=${location.latitude}, lon=${location.longitude}")
+        } else {
+            if (lastPoint != null) {
+                val directDist = GeoMath.haversineDistance(
+                    lastPoint.lat,
+                    lastPoint.lon,
+                    location.latitude,
+                    location.longitude
+                )
+                if (!pdrEngine.isKinematicallyPlausible(directDist, deltaSteps, timeDeltaSec)) {
+                    consecutiveRejectedSpikes++
+                    AppLogger.w(
+                        "Location",
+                        "Spike rejected by kinematic gate: dist=${String.format(Locale.US, "%.1f", directDist)}m, steps=$deltaSteps, dt=${String.format(Locale.US, "%.1f", timeDeltaSec)}s, consecutive=$consecutiveRejectedSpikes"
+                    )
+                    if (consecutiveRejectedSpikes < 3 && timeDeltaSec < 45.0) {
+                        return
+                    } else {
+                        AppLogger.i(
+                            "Location",
+                            "Re-anchoring after spike/gap recovery: consecutive=$consecutiveRejectedSpikes, dt=${String.format(Locale.US, "%.1f", timeDeltaSec)}s"
+                        )
+                        consecutiveRejectedSpikes = 0
+                        kalmanFilter.reset()
+                    }
+                } else {
+                    consecutiveRejectedSpikes = 0
+                }
+            }
+            kalmanFilter.update(location.latitude, location.longitude, location.accuracy, location.time)
         }
 
         lastRecordedLocation = location
         lastGpsUpdateTimeMs = System.currentTimeMillis()
 
-        kalmanFilter.update(location.latitude, location.longitude, location.accuracy, location.time)
+        val filteredLat = kalmanFilter.filteredLat
+        val filteredLon = kalmanFilter.filteredLon
+        val filteredSpeed = if (kalmanFilter.isInitialized) kalmanFilter.filteredSpeed else location.speed
 
-        if (location.accuracy <= 20f) {
+        var addedDistance = 0.0
+        if (lastPoint != null) {
+            if (isRecoveryFromPdr) {
+                // Distance was already accumulated step-by-step during blackout
+                addedDistance = 0.0
+            } else {
+                val dist = GeoMath.haversineDistance(
+                    lastPoint.lat,
+                    lastPoint.lon,
+                    filteredLat,
+                    filteredLon
+                )
+                if (pdrEngine.isStationaryDrift(dist, deltaSteps, filteredSpeed)) {
+                    addedDistance = 0.0
+                } else {
+                    addedDistance = dist
+                }
+            }
+        }
+
+        // Auto-calibrate stride on reliable GPS movement
+        if (location.accuracy <= 15f && deltaSteps > 0 && addedDistance > 0.0) {
             pdrEngine.onGpsDistanceProgress(addedDistance, deltaSteps)
         }
 
         val gpsQuality = when {
             location.accuracy <= 15f -> GpsQuality.GOOD
-            location.accuracy <= 45f -> GpsQuality.WEAK
+            location.accuracy <= 30f -> GpsQuality.WEAK
             else -> GpsQuality.PDR_ACTIVE
         }
 
         val newDistance = currentState.distanceMeters + addedDistance
-        val filteredSpeed = if (kalmanFilter.isInitialized) kalmanFilter.filteredSpeed else location.speed
         val speedKmh = if (filteredSpeed > 0f) filteredSpeed * 3.6f else (if (location.hasSpeed()) location.speed * 3.6f else 0f)
         val isAutoPaused = autoPauseDetector.update(speedKmh, currentState.elapsedSeconds)
 
         stepSensorManager.onDistanceUpdated(newDistance)
 
         val trackPoint = TrackPoint(
-            lat = kalmanFilter.filteredLat,
-            lon = kalmanFilter.filteredLon,
+            lat = filteredLat,
+            lon = filteredLon,
             altitude = location.altitude,
             timestamp = location.time,
             elapsedSeconds = currentState.elapsedSeconds,
@@ -543,7 +601,7 @@ class WalkTrackingService : Service() {
         val updatedPoints = currentState.currentPoints + trackPoint
 
         val ghostResult = if (!isAutoPaused && currentState.ghostPoints.isNotEmpty()) {
-            ghostEngine.compare(kalmanFilter.filteredLat, kalmanFilter.filteredLon, currentState.elapsedSeconds)
+            ghostEngine.compare(filteredLat, filteredLon, currentState.elapsedSeconds)
         } else if (isAutoPaused) {
             currentState.ghostComparison.copy(status = GhostStatus.PAUSED)
         } else {
@@ -565,7 +623,7 @@ class WalkTrackingService : Service() {
 
         AppLogger.d(
             "Location",
-            "Accepted: lat=${String.format(Locale.US, "%.5f", kalmanFilter.filteredLat)}, lon=${String.format(Locale.US, "%.5f", kalmanFilter.filteredLon)}, acc=${String.format(Locale.US, "%.1f", kalmanFilter.filteredAccuracy)}m, quality=$gpsQuality, added=${String.format(Locale.US, "%.1f", addedDistance)}m, total=${String.format(Locale.US, "%.1f", newDistance)}m"
+            "Accepted: lat=${String.format(Locale.US, "%.5f", filteredLat)}, lon=${String.format(Locale.US, "%.5f", filteredLon)}, acc=${String.format(Locale.US, "%.1f", kalmanFilter.filteredAccuracy)}m, quality=$gpsQuality, added=${String.format(Locale.US, "%.1f", addedDistance)}m, total=${String.format(Locale.US, "%.1f", newDistance)}m"
         )
     }
 
@@ -673,47 +731,56 @@ class WalkTrackingService : Service() {
 
         val now = System.currentTimeMillis()
         val timeSinceLastGps = if (lastGpsUpdateTimeMs > 0L) now - lastGpsUpdateTimeMs else Long.MAX_VALUE
-        val isAccuracyDegraded = currentState.currentAccuracyMeters > 45f
+        val isAccuracyDegraded = currentState.currentAccuracyMeters > 35f
         val isGpsStale = timeSinceLastGps > 4500L
 
         if (isGpsStale || isAccuracyDegraded) {
-            val deltaSteps = steps - lastPoint.stepCount
+            wasInPdrMode = true
+            val deltaSteps = (steps - currentState.stepCount).coerceAtLeast(0)
             if (deltaSteps >= 1) {
                 val addedDistance = deltaSteps * pdrEngine.currentStrideLengthMeters
                 val newDistance = currentState.distanceMeters + addedDistance
-                val pdrTrackPoint = pdrEngine.propagatePoint(
-                    lastPoint = lastPoint,
-                    deltaSteps = deltaSteps,
-                    headingAzimuthDeg = orientationSensorManager.currentHeading,
-                    timestampMs = now
-                ).copy(
-                    cumulativeDistance = newDistance,
-                    stepCount = steps,
-                    isPdr = true,
-                    accuracy = 25f
-                )
 
-                val updatedPoints = currentState.currentPoints + pdrTrackPoint
-                val ghostResult = if (currentState.ghostPoints.isNotEmpty()) {
-                    ghostEngine.compare(pdrTrackPoint.lat, pdrTrackPoint.lon, currentState.elapsedSeconds)
+                if (currentState.ghostPoints.isNotEmpty()) {
+                    // Ghost Mode: advance position along ghost route geometry
+                    val ghostResult = ghostEngine.advanceGhostProgress(
+                        currentProgressMeters = newDistance,
+                        elapsedSeconds = currentState.elapsedSeconds
+                    )
+                    checkAndTriggerFeedback(ghostResult)
+
+                    val projectedPoint = GeoMath.interpolatePointAtDistance(currentState.ghostPoints, newDistance)
+                    val pdrTrackPoint = projectedPoint.copy(
+                        timestamp = now,
+                        elapsedSeconds = currentState.elapsedSeconds,
+                        cumulativeDistance = newDistance,
+                        stepCount = steps,
+                        isPdr = true,
+                        accuracy = 25f
+                    )
+                    val updatedPoints = currentState.currentPoints + pdrTrackPoint
+
+                    _walkState.value = currentState.copy(
+                        distanceMeters = newDistance,
+                        stepCount = steps,
+                        gpsQuality = GpsQuality.PDR_ACTIVE,
+                        currentAccuracyMeters = 25f,
+                        ghostComparison = ghostResult,
+                        currentPoints = updatedPoints
+                    )
                 } else {
-                    currentState.ghostComparison
+                    // Free Walk Mode: advance distance and steps accurately without compass distortion
+                    _walkState.value = currentState.copy(
+                        distanceMeters = newDistance,
+                        stepCount = steps,
+                        gpsQuality = GpsQuality.PDR_ACTIVE,
+                        currentAccuracyMeters = 30f
+                    )
                 }
-
-                checkAndTriggerFeedback(ghostResult)
-
-                _walkState.value = currentState.copy(
-                    distanceMeters = newDistance,
-                    stepCount = steps,
-                    gpsQuality = GpsQuality.PDR_ACTIVE,
-                    currentAccuracyMeters = 25f,
-                    ghostComparison = ghostResult,
-                    currentPoints = updatedPoints
-                )
 
                 AppLogger.d(
                     "PDR",
-                    "PDR step propagated: delta=$deltaSteps, totalSteps=$steps, heading=${String.format(Locale.US, "%.1f", orientationSensorManager.currentHeading)}, added=${String.format(Locale.US, "%.2f", addedDistance)}m, total=${String.format(Locale.US, "%.1f", newDistance)}m"
+                    "PDR step propagated: delta=$deltaSteps, totalSteps=$steps, stride=${String.format(Locale.US, "%.2f", pdrEngine.currentStrideLengthMeters)}m, added=${String.format(Locale.US, "%.2f", addedDistance)}m, total=${String.format(Locale.US, "%.1f", newDistance)}m"
                 )
                 return
             }
@@ -737,6 +804,7 @@ class WalkTrackingService : Service() {
         lastRecordedLocation = null
         lastGpsUpdateTimeMs = 0L
         consecutiveRejectedSpikes = 0
+        wasInPdrMode = false
         kalmanFilter.reset()
         pdrEngine.reset()
         orientationSensorManager.reset()

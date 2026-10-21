@@ -78,6 +78,91 @@ class GhostEngine(
         )
     }
 
+    /**
+     * Advances user progress along the Ghost route during GPS-denied (PDR) mode,
+     * maintaining pacing comparison and feedback without triggering false off-route alerts.
+     */
+    fun advanceGhostProgress(
+        currentProgressMeters: Double,
+        elapsedSeconds: Long
+    ): GhostComparisonResult {
+        if (route.isEmpty()) {
+            return GhostComparisonResult.NO_GHOST
+        }
+
+        val totalGhostMeters = route.last().cumulativeDistance
+        val ghostAtTime = interpolateGhostAtElapsed(route, elapsedSeconds)
+        val userPoint = GeoMath.interpolatePointAtDistance(route, currentProgressMeters)
+
+        val ghostElapsedSeconds = userPoint.elapsedSeconds
+        val timeDeltaSeconds = elapsedSeconds - ghostElapsedSeconds
+        val distanceDeltaMeters = currentProgressMeters - ghostAtTime.cumulativeDistance
+
+        val status = when {
+            timeDeltaSeconds > BEHIND_TIME_THRESHOLD_SECONDS -> GhostStatus.BEHIND
+            timeDeltaSeconds < AHEAD_TIME_THRESHOLD_SECONDS -> GhostStatus.AHEAD
+            else -> GhostStatus.ON_PACE
+        }
+
+        var shouldVibrateBehind = false
+        var shouldVibrateOvertake = false
+        var shouldVibrateAheadReminder = false
+        var shouldSpeakBehind = false
+        var shouldSpeakOvertake = false
+        var shouldSpeakAheadReminder = false
+
+        if (status == GhostStatus.BEHIND) {
+            if (lastBehindAlertElapsedSeconds < 0L ||
+                (elapsedSeconds - lastBehindAlertElapsedSeconds >= behindVoiceCooldownSeconds)
+            ) {
+                shouldVibrateBehind = true
+                shouldSpeakBehind = true
+                lastBehindAlertElapsedSeconds = elapsedSeconds
+            }
+            wasBehind = true
+        } else if (status == GhostStatus.AHEAD) {
+            val isOvertake = wasBehind || previousStatus == GhostStatus.BEHIND || previousStatus == GhostStatus.ON_PACE
+            if (isAheadVoiceEnabled) {
+                if (isOvertake) {
+                    shouldVibrateOvertake = true
+                    shouldSpeakOvertake = true
+                    lastAheadAlertElapsedSeconds = elapsedSeconds
+                } else {
+                    if (lastAheadAlertElapsedSeconds >= 0L &&
+                        (elapsedSeconds - lastAheadAlertElapsedSeconds >= aheadVoiceCooldownSeconds)
+                    ) {
+                        shouldSpeakAheadReminder = true
+                        shouldVibrateAheadReminder = true
+                        lastAheadAlertElapsedSeconds = elapsedSeconds
+                    }
+                }
+            }
+            wasBehind = false
+        } else {
+            wasBehind = false
+        }
+
+        previousStatus = status
+
+        return GhostComparisonResult(
+            status = status,
+            timeDeltaSeconds = timeDeltaSeconds,
+            distanceDeltaMeters = distanceDeltaMeters,
+            currentProgressMeters = currentProgressMeters,
+            totalGhostMeters = totalGhostMeters,
+            ghostLat = ghostAtTime.lat,
+            ghostLon = ghostAtTime.lon,
+            shouldVibrateBehind = shouldVibrateBehind,
+            shouldVibrateOvertake = shouldVibrateOvertake,
+            shouldVibrateAheadReminder = shouldVibrateAheadReminder,
+            shouldVibrateOffRoute = false,
+            shouldSpeakBehind = shouldSpeakBehind,
+            shouldSpeakOvertake = shouldSpeakOvertake,
+            shouldSpeakAheadReminder = shouldSpeakAheadReminder,
+            shouldSpeakOffRoute = false
+        )
+    }
+
     fun compare(userLat: Double, userLon: Double, elapsedSeconds: Long): GhostComparisonResult {
         if (route.isEmpty()) {
             return GhostComparisonResult.NO_GHOST

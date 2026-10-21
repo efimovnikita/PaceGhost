@@ -31,16 +31,17 @@ class PositioningPipelineTest {
     fun `gpsQuality categorization matches accuracy thresholds`() {
         fun determineQuality(accuracy: Float): GpsQuality = when {
             accuracy <= 15f -> GpsQuality.GOOD
-            accuracy <= 45f -> GpsQuality.WEAK
+            accuracy <= 30f -> GpsQuality.WEAK
             else -> GpsQuality.PDR_ACTIVE
         }
 
         assertEquals(GpsQuality.GOOD, determineQuality(5f))
         assertEquals(GpsQuality.GOOD, determineQuality(15f))
         assertEquals(GpsQuality.WEAK, determineQuality(15.1f))
+        assertEquals(GpsQuality.WEAK, determineQuality(25f))
         assertEquals(GpsQuality.WEAK, determineQuality(30f))
-        assertEquals(GpsQuality.WEAK, determineQuality(45f))
-        assertEquals(GpsQuality.PDR_ACTIVE, determineQuality(45.1f))
+        assertEquals(GpsQuality.PDR_ACTIVE, determineQuality(30.1f))
+        assertEquals(GpsQuality.PDR_ACTIVE, determineQuality(45f))
         assertEquals(GpsQuality.PDR_ACTIVE, determineQuality(80f))
     }
 
@@ -115,5 +116,40 @@ class PositioningPipelineTest {
         // Reset restores initial stride
         pdrEngine.reset()
         assertEquals(0.75, pdrEngine.currentStrideLengthMeters, 0.001)
+    }
+
+    @Test
+    fun `kalman filtered distance accumulation dampens raw GPS multipath noise`() {
+        val baseLat = 55.750000
+        val baseLon = 37.600000
+
+        kalmanFilter.update(baseLat, baseLon, 10f, 1000L)
+
+        // Raw noisy zig-zag points (+5m, -5m, +5m, -5m)
+        val rawOffsetsMeters = doubleArrayOf(5.0, -5.0, 5.0, -5.0)
+        var rawCumulativeDist = 0.0
+        var filteredCumulativeDist = 0.0
+
+        var prevRawLat = baseLat
+        var prevFilteredLat = kalmanFilter.filteredLat
+
+        for (i in rawOffsetsMeters.indices) {
+            val offsetDeg = rawOffsetsMeters[i] / KalmanLocationFilter.METERS_PER_DEG_LAT
+            val noisyLat = baseLat + offsetDeg
+            val t = 2000L + i * 2000L
+
+            rawCumulativeDist += GeoMath.haversineDistance(prevRawLat, baseLon, noisyLat, baseLon)
+            prevRawLat = noisyLat
+
+            kalmanFilter.update(noisyLat, baseLon, 12f, t)
+            val currFilteredLat = kalmanFilter.filteredLat
+            filteredCumulativeDist += GeoMath.haversineDistance(prevFilteredLat, baseLon, currFilteredLat, baseLon)
+            prevFilteredLat = currFilteredLat
+        }
+
+        assertTrue(
+            "Filtered distance ($filteredCumulativeDist) must be significantly lower than raw noisy distance ($rawCumulativeDist)",
+            filteredCumulativeDist < rawCumulativeDist * 0.70
+        )
     }
 }

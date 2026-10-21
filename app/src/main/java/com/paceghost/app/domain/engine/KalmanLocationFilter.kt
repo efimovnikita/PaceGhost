@@ -16,7 +16,7 @@ class KalmanLocationFilter(
 
     companion object {
         const val METERS_PER_DEG_LAT = 111320.0
-        const val DEFAULT_ACCELERATION_STD = 1.0 // m/s^2 typical pedestrian acceleration noise
+        const val DEFAULT_ACCELERATION_STD = 0.35 // m/s^2 tuned for smooth pedestrian walking dynamics
     }
 
     private var lat: Double = 0.0

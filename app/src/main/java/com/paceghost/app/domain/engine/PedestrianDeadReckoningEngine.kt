@@ -20,7 +20,7 @@ class PedestrianDeadReckoningEngine(
         const val MAX_STRIDE_METERS = 1.10
         const val RELIABLE_ACCURACY_THRESHOLD_METERS = 20.0f
         const val MAX_STRIDE_SPEED_METERS_PER_STEP = 1.25
-        const val KINEMATIC_BUFFER_METERS = 25.0
+        const val KINEMATIC_BUFFER_METERS = 15.0
     }
 
     var currentStride: Double = initialStrideMeters.coerceIn(MIN_STRIDE_METERS, MAX_STRIDE_METERS)
@@ -153,5 +153,17 @@ class PedestrianDeadReckoningEngine(
     ): Boolean {
         val maxAllowed = deltaSteps.coerceAtLeast(0) * MAX_STRIDE_SPEED_METERS_PER_STEP + KINEMATIC_BUFFER_METERS
         return deltaDistMeters <= maxAllowed
+    }
+
+    /**
+     * Determines whether a small GPS movement is stationary drift rather than real motion.
+     * Filters out small GPS jitter when no steps were taken and speed is near zero.
+     */
+    fun isStationaryDrift(
+        deltaDistMeters: Double,
+        deltaSteps: Int,
+        speedMps: Float
+    ): Boolean {
+        return deltaSteps == 0 && deltaDistMeters < 0.8 && speedMps < 0.4f
     }
 }

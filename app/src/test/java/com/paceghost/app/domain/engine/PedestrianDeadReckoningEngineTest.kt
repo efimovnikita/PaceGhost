@@ -184,4 +184,25 @@ class PedestrianDeadReckoningEngineTest {
             pdrEngine.isKinematicallyPlausible(deltaDistMeters = 90.0, deltaSteps = 10)
         )
     }
+
+    @Test
+    fun `isStationaryDrift identifies stationary GPS jitter and preserves valid motion`() {
+        // Stationary jitter: 0 steps, 0.4m drift, speed 0.1 m/s -> drift
+        assertTrue(
+            "0 steps and 0.4m drift should be identified as stationary drift",
+            pdrEngine.isStationaryDrift(deltaDistMeters = 0.4, deltaSteps = 0, speedMps = 0.1f)
+        )
+
+        // Real motion with steps: 1 step, 0.7m drift -> not stationary drift
+        assertFalse(
+            "Movement with steps is not stationary drift",
+            pdrEngine.isStationaryDrift(deltaDistMeters = 0.7, deltaSteps = 1, speedMps = 0.5f)
+        )
+
+        // High speed or larger distance: 1.5m movement even with 0 steps (e.g. initial start) -> not stationary drift
+        assertFalse(
+            "Large movement is not stationary drift",
+            pdrEngine.isStationaryDrift(deltaDistMeters = 1.5, deltaSteps = 0, speedMps = 0.8f)
+        )
+    }
 }

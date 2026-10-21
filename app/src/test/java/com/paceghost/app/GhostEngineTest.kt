@@ -272,4 +272,27 @@ class GhostEngineTest {
         assertTrue(rAfterReset.shouldVibrateBehind)
         assertTrue(rAfterReset.shouldSpeakBehind)
     }
+
+    @Test
+    fun `advanceGhostProgress in GPS-denied mode accurately computes pacing without false off-route`() {
+        val totalDist = ghostRoute.last().cumulativeDistance
+        val halfDist = totalDist / 2.0
+
+        // User advances to half distance at 70s (ghost was at half distance at 100s) -> AHEAD
+        val rAhead = ghostEngine.advanceGhostProgress(currentProgressMeters = halfDist, elapsedSeconds = 70)
+        assertEquals(GhostStatus.AHEAD, rAhead.status)
+        assertFalse("PDR mode should never trigger off-route", rAhead.shouldSpeakOffRoute)
+        assertTrue("Distance delta should be positive", rAhead.distanceDeltaMeters > 0)
+
+        // User advances to half distance at 145s -> BEHIND
+        val rBehind = ghostEngine.advanceGhostProgress(currentProgressMeters = halfDist, elapsedSeconds = 145)
+        assertEquals(GhostStatus.BEHIND, rBehind.status)
+        assertFalse("PDR mode should never trigger off-route", rBehind.shouldSpeakOffRoute)
+        assertTrue("Distance delta should be negative", rBehind.distanceDeltaMeters < 0)
+
+        // Empty route returns NO_GHOST
+        val emptyEngine = GhostEngine(emptyList())
+        val rEmpty = emptyEngine.advanceGhostProgress(currentProgressMeters = 50.0, elapsedSeconds = 50)
+        assertEquals(GhostStatus.NO_GHOST, rEmpty.status)
+    }
 }

@@ -105,6 +105,39 @@ object GeoMath {
     }
 
     /**
+     * Interpolates a point along a route at [distanceMeters] from the start.
+     */
+    fun interpolatePointAtDistance(route: List<TrackPoint>, distanceMeters: Double): TrackPoint {
+        if (route.isEmpty()) return TrackPoint(0.0, 0.0)
+        if (distanceMeters <= 0.0 || distanceMeters <= route.first().cumulativeDistance) {
+            return route.first()
+        }
+        if (distanceMeters >= route.last().cumulativeDistance) {
+            return route.last()
+        }
+
+        for (i in 0 until route.size - 1) {
+            val p1 = route[i]
+            val p2 = route[i + 1]
+            if (distanceMeters in p1.cumulativeDistance..p2.cumulativeDistance) {
+                val span = p2.cumulativeDistance - p1.cumulativeDistance
+                val fraction = if (span > 0.0) (distanceMeters - p1.cumulativeDistance) / span else 0.0
+                return TrackPoint(
+                    lat = p1.lat + fraction * (p2.lat - p1.lat),
+                    lon = p1.lon + fraction * (p2.lon - p1.lon),
+                    altitude = p1.altitude + fraction * (p2.altitude - p1.altitude),
+                    timestamp = (p1.timestamp + fraction * (p2.timestamp - p1.timestamp)).toLong(),
+                    elapsedSeconds = (p1.elapsedSeconds + fraction * (p2.elapsedSeconds - p1.elapsedSeconds)).toLong(),
+                    cumulativeDistance = distanceMeters,
+                    speed = (p1.speed + fraction * (p2.speed - p1.speed)).toFloat()
+                )
+            }
+        }
+
+        return route.last()
+    }
+
+    /**
      * Calculates the destination coordinates starting from [lat], [lon], traveling [distanceMeters]
      * along initial bearing [bearingDeg] (clockwise from North, 0..360).
      *

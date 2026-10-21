@@ -88,4 +88,30 @@ class GeoMathTest {
         assertEquals(d1, result[1].cumulativeDistance, 0.001)
         assertEquals(d1 + d2, result[2].cumulativeDistance, 0.001)
     }
+
+    @Test
+    fun `interpolatePointAtDistance interpolates along route correctly`() {
+        val p1 = TrackPoint(lat = 55.7300, lon = 37.5000, elapsedSeconds = 0, cumulativeDistance = 0.0)
+        val p2 = TrackPoint(lat = 55.7310, lon = 37.5000, elapsedSeconds = 100, cumulativeDistance = 100.0)
+        val route = listOf(p1, p2)
+
+        // Midpoint at 50m
+        val mid = GeoMath.interpolatePointAtDistance(route, 50.0)
+        assertEquals(55.7305, mid.lat, 0.0001)
+        assertEquals(37.5000, mid.lon, 0.0001)
+        assertEquals(50L, mid.elapsedSeconds)
+        assertEquals(50.0, mid.cumulativeDistance, 0.001)
+
+        // Boundary: 0m
+        val start = GeoMath.interpolatePointAtDistance(route, 0.0)
+        assertEquals(p1.lat, start.lat, 0.00001)
+
+        // Boundary: > 100m
+        val end = GeoMath.interpolatePointAtDistance(route, 150.0)
+        assertEquals(p2.lat, end.lat, 0.00001)
+
+        // Empty route
+        val empty = GeoMath.interpolatePointAtDistance(emptyList(), 50.0)
+        assertEquals(0.0, empty.lat, 0.00001)
+    }
 }
