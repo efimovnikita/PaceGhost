@@ -1,5 +1,6 @@
 package com.paceghost.app.ui.active
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -39,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,6 +72,9 @@ fun ActiveWalkScreen(
     val walkState by viewModel.walkState.collectAsState()
     val showSummaryDialog by viewModel.showSummaryDialog.collectAsState()
     val showBatteryOptimizationDialog by viewModel.showBatteryOptimizationDialog.collectAsState()
+    val isSuggestingTitle by viewModel.isSuggestingTitle.collectAsState()
+    val suggestedTitle by viewModel.suggestedTitle.collectAsState()
+    val context = LocalContext.current
     var isOffRouteSimulated by remember { mutableStateOf(false) }
 
     // Start tracking and bind service on launch
@@ -77,6 +82,13 @@ fun ActiveWalkScreen(
         viewModel.start(ghostWalkId, isDemo)
         if (!isDemo) {
             viewModel.checkBatteryOptimization()
+        }
+    }
+
+    // Handle user notification messages
+    LaunchedEffect(Unit) {
+        viewModel.userMessage.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -262,6 +274,9 @@ fun ActiveWalkScreen(
                 durationSeconds = walkState.elapsedSeconds,
                 stepCount = walkState.stepCount,
                 averagePaceSecondsPerKm = walkState.currentPaceSecondsPerKm,
+                isSuggestingTitle = isSuggestingTitle,
+                suggestedTitle = suggestedTitle,
+                onSuggestTitle = { viewModel.suggestRouteTitle() },
                 onSave = { title -> viewModel.saveWalk(title) },
                 onDiscard = { viewModel.discardWalk() },
                 onDismiss = { viewModel.dismissSummaryDialog() }

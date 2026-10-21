@@ -13,8 +13,11 @@ import com.paceghost.app.data.local.entity.TrackPointEntity
 import com.paceghost.app.data.local.entity.WalkEntity
 import com.paceghost.app.data.repository.WalkRepository
 import com.paceghost.app.data.repository.WalkRepositoryImpl
+import com.paceghost.app.domain.engine.SmartRouteNamingEngine
 import com.paceghost.app.domain.model.WalkState
 import com.paceghost.app.service.WalkTrackingService
+import com.paceghost.app.service.geocode.AndroidWalkGeocoder
+import com.paceghost.app.service.geocode.RouteGeocoder
 import com.paceghost.app.util.AppLogger
 import com.paceghost.app.util.BatteryOptimizationHelper
 import kotlinx.coroutines.Job
@@ -25,7 +28,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class ActiveWalkViewModel(application: Application) : AndroidViewModel(application) {
+class ActiveWalkViewModel(
+    application: Application,
+    private val routeGeocoder: RouteGeocoder = AndroidWalkGeocoder(application)
+) : AndroidViewModel(application) {
 
     private val repository: WalkRepository = WalkRepositoryImpl(
         AppDatabase.getInstance(application, viewModelScope).walkDao()
@@ -36,6 +42,15 @@ class ActiveWalkViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _showSummaryDialog = MutableStateFlow(false)
     val showSummaryDialog: StateFlow<Boolean> = _showSummaryDialog.asStateFlow()
+
+    private val _isSuggestingTitle = MutableStateFlow(false)
+    val isSuggestingTitle: StateFlow<Boolean> = _isSuggestingTitle.asStateFlow()
+
+    private val _suggestedTitle = MutableStateFlow<String?>(null)
+    val suggestedTitle: StateFlow<String?> = _suggestedTitle.asStateFlow()
+
+    private val _userMessage = MutableSharedFlow<String>(extraBufferCapacity = 2)
+    val userMessage = _userMessage.asSharedFlow()
 
     private val _showBatteryOptimizationDialog = MutableStateFlow(false)
     val showBatteryOptimizationDialog: StateFlow<Boolean> = _showBatteryOptimizationDialog.asStateFlow()
@@ -102,12 +117,40 @@ class ActiveWalkViewModel(application: Application) : AndroidViewModel(applicati
         // Pause while reviewing summary
         AppLogger.i("ActiveWalkViewModel", "requestFinish: opening summary dialog")
         trackingService?.pauseTracking()
+        _suggestedTitle.value = null
         _showSummaryDialog.value = true
     }
 
     fun dismissSummaryDialog() {
         AppLogger.i("ActiveWalkViewModel", "dismissSummaryDialog: dismissed dialog, session remains paused")
         _showSummaryDialog.value = false
+    }
+
+    fun suggestRouteTitle() {
+        if (_isSuggestingTitle.value) return
+        viewModelScope.launch {
+            _isSuggestingTitle.value = true
+            try {
+                val points = _walkState.value.currentPoints
+                if (points.isEmpty()) {
+                    _userMessage.emit("No GPS points recorded for this walk yet")
+                    return@launch
+                }
+                val sampledPoints = SmartRouteNamingEngine.sampleKeyPoints(points)
+                val landmarks = routeGeocoder.resolveLandmarks(sampledPoints)
+                val title = SmartRouteNamingEngine.formatRouteTitle(landmarks)
+                if (title != null) {
+                    _suggestedTitle.value = title
+                } else {
+                    _userMessage.emit("Could not detect street names for this route")
+                }
+            } catch (e: Exception) {
+                AppLogger.e("ActiveWalkViewModel", "Error resolving street route title", e)
+                _userMessage.emit("Failed to resolve street names")
+            } finally {
+                _isSuggestingTitle.value = false
+            }
+        }
     }
 
     fun checkBatteryOptimization() {

@@ -8,19 +8,26 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +55,9 @@ fun WalkSummaryDialog(
     durationSeconds: Long,
     stepCount: Int,
     averagePaceSecondsPerKm: Double,
+    isSuggestingTitle: Boolean = false,
+    suggestedTitle: String? = null,
+    onSuggestTitle: () -> Unit = {},
     onSave: (title: String) -> Unit,
     onDiscard: () -> Unit,
     onDismiss: () -> Unit,
@@ -60,6 +70,12 @@ fun WalkSummaryDialog(
 
     var title by remember { mutableStateOf(defaultTitle) }
     var showDiscardConfirmDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(suggestedTitle) {
+        if (!suggestedTitle.isNullOrBlank()) {
+            title = suggestedTitle
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -90,6 +106,25 @@ fun WalkSummaryDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
+                    trailingIcon = {
+                        if (isSuggestingTitle) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = NeonGreenRunner
+                            )
+                        } else {
+                            IconButton(
+                                onClick = onSuggestTitle
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.AutoAwesome,
+                                    contentDescription = "Suggest route name from streets",
+                                    tint = NeonGreenRunner
+                                )
+                            }
+                        }
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = NeonGreenRunner,
                         unfocusedBorderColor = DarkSurfaceVariant,
