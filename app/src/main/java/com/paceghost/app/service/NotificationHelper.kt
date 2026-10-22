@@ -70,7 +70,7 @@ class NotificationHelper(private val context: Context) {
         val content = "🚶 $steps steps • $distText • $paceText"
 
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(content)
             .setContentIntent(pendingIntent)
