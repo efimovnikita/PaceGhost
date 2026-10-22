@@ -3,8 +3,8 @@
 Minimalist Android activity tracker featuring Ghost Pacing, OLED dark theme, and TTS audio guidance.
 
 ## Architecture & Navigation
-- Domain: [`GhostEngine.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/domain/engine/GhostEngine.kt), [`VoiceSettings.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/domain/model/VoiceSettings.kt)
-- Services: [`WalkTrackingService.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/service/WalkTrackingService.kt), [`VoiceGuidanceManager.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/service/VoiceGuidanceManager.kt), [`StepSensorManager.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/service/StepSensorManager.kt)
+- Domain: [`GhostEngine.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/domain/engine/GhostEngine.kt), [`VoiceSettings.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/domain/model/VoiceSettings.kt), [`SmartRouteNamingEngine.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/domain/engine/SmartRouteNamingEngine.kt)
+- Services: [`WalkTrackingService.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/service/WalkTrackingService.kt), [`VoiceGuidanceManager.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/service/VoiceGuidanceManager.kt), [`StepSensorManager.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/service/StepSensorManager.kt), [`WalkGeocoder.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/service/geocode/WalkGeocoder.kt)
 - UI (Jetpack Compose): [`HomeScreen.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/ui/home/HomeScreen.kt), [`ActiveWalkScreen.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/ui/active/ActiveWalkScreen.kt), [`VoiceSettingsDialog.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/ui/home/components/VoiceSettingsDialog.kt)
 - Resources & Strings: [`strings.xml`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/res/values/strings.xml)
 - Local Storage: [`VoiceSettingsPreferences.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/data/local/VoiceSettingsPreferences.kt), Room DB in `data/local/`
@@ -17,9 +17,14 @@ Minimalist Android activity tracker featuring Ghost Pacing, OLED dark theme, and
    - Background `#000000` / `#121212`, accent colors `NeonGreenRunner` (`#00FF66`) and `CyanGhost` (`#00E5FF`).
 3. **TopAppBar Action Density**:
    - Keep actions in `TopAppBar` compact (use small chips or icon buttons) to prevent the `title` ("PaceGhost") from wrapping.
+4. **Android Platform & Runtime Guardrails**:
+   - **ViewModels**: Always declare `@JvmOverloads constructor(...)` on any `AndroidViewModel` with default parameter values so `ViewModelProvider` reflection finds `(Application)`.
+   - **Regex on Android ICU**: Never use `(?U)` flag (unsupported in Android ICU and throws `PatternSyntaxException`). Use `[\p{L}\p{N}]` boundaries for Unicode text.
+   - **Crash Telemetry**: Retain `setupCrashHandler` in [`AppLogger.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/util/AppLogger.kt) to flush uncaught exceptions to `paceghost.log`.
 
 ## Build & Verification Commands (PowerShell)
 - Localization check: `pwsh scripts/check_localization.ps1`
+- Android Compatibility check: `pwsh scripts/check_android_compat.ps1` (or `./gradlew checkAndroidCompatibility`)
 - Unit Tests: `.\gradlew.bat testDebugUnitTest`
 - Debug APK: `.\gradlew.bat assembleDebug`
 - Signed Release APK: `.\gradlew.bat assembleRelease` (outputs to `app/build/outputs/apk/release/app-release.apk`)
@@ -35,6 +40,7 @@ Minimalist Android activity tracker featuring Ghost Pacing, OLED dark theme, and
 ## Emulator & ADB Guidelines
 - ADB Path: `C:\Users\--\AppData\Local\Android\Sdk\platform-tools\adb.exe`
 - Always prefix ADB commands with device wait: `& "C:\Users\--\AppData\Local\Android\Sdk\platform-tools\adb.exe" wait-for-device ; ...`
+- When executing complex shell commands with pipes, loops, or inner quotes via ADB in PowerShell, wrap the command in single quotes to avoid PowerShell interpolation: `& $adb shell 'while [ ... ]; do ...; done'`
 - After starting an activity (`am start`), allow 2–3 seconds before taking screenshots so Compose finishes rendering.
 - When capturing screenshots for the user, immediately embed them into an artifact with `UserFacing: true`.
 - Target `rg` searches specifically inside `app/src/` to avoid scanning heavy `build/` and `.gradle/` directories.

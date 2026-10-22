@@ -130,6 +130,47 @@ tasks.register("checkLocalization") {
     }
 }
 
+tasks.register("checkAndroidCompatibility") {
+    group = "verification"
+    description = "Enforces Android runtime compatibility: checks for banned regex flags (?U) and ViewModel constructors"
+    doLast {
+        val mainDir = file("src/main")
+        var violations = 0
+
+        // 1. Check for banned regex flags that crash Android ICU runtime
+        val bannedRegexPattern = Regex("""\(\?[a-zA-Z]*U[a-zA-Z]*\)""")
+        mainDir.walkTopDown().filter { it.extension == "kt" }.forEach { file ->
+            file.readLines().forEachIndexed { idx, line ->
+                if (bannedRegexPattern.containsMatchIn(line)) {
+                    logger.error("Android ICU incompatibility in ${file.name}:${idx + 1}: Flag (?U) is not supported on Android runtime: ${line.trim()}")
+                    violations++
+                }
+            }
+        }
+
+        // 2. Check for AndroidViewModel classes with default arguments lacking @JvmOverloads
+        mainDir.walkTopDown().filter { it.extension == "kt" }.forEach { file ->
+            val text = file.readText()
+            if (text.contains("AndroidViewModel") && text.contains("class ") && text.contains("=")) {
+                val classRegex = Regex("""class\s+([A-Za-z0-9_]+)\s*(?:@([A-Za-z0-9_]+)\s*)?\(([^)]*=[^)]*)\)\s*:\s*AndroidViewModel""")
+                classRegex.findAll(text).forEach { match ->
+                    val className = match.groupValues[1]
+                    val annotation = match.groupValues[2]
+                    if (annotation != "JvmOverloads" && !text.contains("@JvmOverloads constructor")) {
+                        logger.error("ViewModel reflection incompatibility in ${file.name}: class $className has default constructor parameters but is missing @JvmOverloads for AndroidViewModelFactory")
+                        violations++
+                    }
+                }
+            }
+        }
+
+        if (violations > 0) {
+            throw GradleException("Found $violations Android compatibility violations. Fix them before building.")
+        }
+    }
+}
+
 tasks.named("preBuild") {
     dependsOn("checkLocalization")
+    dependsOn("checkAndroidCompatibility")
 }

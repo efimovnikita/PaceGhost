@@ -30,8 +30,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Verify Localization & Run Unit Tests
-        run: ./gradlew checkLocalization testDebugUnitTest
+      - name: Verify Localization, Android Compatibility & Run Unit Tests
+        run: ./gradlew checkLocalization checkAndroidCompatibility testDebugUnitTest
 
       - name: Build Signed Release APK
         run: ./gradlew assembleRelease
