@@ -22,23 +22,23 @@ object SmartRouteNamingEngine {
         Regex("(?i)\\bCourt\\b") to "Ct",
         Regex("(?i)\\bPlace\\b") to "Pl",
 
-        // Cyrillic replacements using Unicode escapes
+        // Cyrillic replacements using Unicode boundary patterns compatible with both standard JVM and Android ICU
         // ulitsa -> ul.
-        Regex("(?U)(?i)\\b\\u0443\\u043B\\u0438\\u0446\\u0430\\b") to "\u0443\u043B.",
+        Regex("(?i)(^|[^\\p{L}\\p{N}])\\u0443\\u043B\\u0438\\u0446\\u0430($|[^\\p{L}\\p{N}])") to "$1\u0443\u043B.$2",
         // prospekt -> pr-kt
-        Regex("(?U)(?i)\\b\\u043F\\u0440\\u043E\\u0441\\u043F\\u0435\\u043A\\u0442\\b") to "\u043F\u0440-\u043A\u0442",
+        Regex("(?i)(^|[^\\p{L}\\p{N}])\\u043F\\u0440\\u043E\\u0441\\u043F\\u0435\\u043A\\u0442($|[^\\p{L}\\p{N}])") to "$1\u043F\u0440-\u043A\u0442$2",
         // pereulok -> per.
-        Regex("(?U)(?i)\\b\\u043F\\u0435\\u0440\\u0435\\u0443\\u043B\\u043E\\u043A\\b") to "\u043F\u0435\u0440.",
+        Regex("(?i)(^|[^\\p{L}\\p{N}])\\u043F\\u0435\\u0440\\u0435\\u0443\\u043B\\u043E\\u043A($|[^\\p{L}\\p{N}])") to "$1\u043F\u0435\u0440.$2",
         // naberezhnaya -> nab.
-        Regex("(?U)(?i)\\b\\u043D\\u0430\\u0431\\u0435\\u0440\\u0435\\u0436\\u043D\\u0430\\u044F\\b") to "\u043D\u0430\u0431.",
+        Regex("(?i)(^|[^\\p{L}\\p{N}])\\u043D\\u0430\\u0431\\u0435\\u0440\\u0435\\u0436\\u043D\\u0430\\u044F($|[^\\p{L}\\p{N}])") to "$1\u043D\u0430\u0431.$2",
         // shosse -> sh.
-        Regex("(?U)(?i)\\b\\u0448\\u043E\\u0441\\u0441\\u0435\\b") to "\u0448.",
+        Regex("(?i)(^|[^\\p{L}\\p{N}])\\u0448\\u043E\\u0441\\u0441\\u0435($|[^\\p{L}\\p{N}])") to "$1\u0448.$2",
         // bulvar -> b-r
-        Regex("(?U)(?i)\\b\\u0431\\u0443\\u043B\\u044C\\u0432\\u0430\\u0440\\b") to "\u0431-\u0440",
+        Regex("(?i)(^|[^\\p{L}\\p{N}])\\u0431\\u0443\\u043B\\u044C\\u0432\\u0430\\u0440($|[^\\p{L}\\p{N}])") to "$1\u0431-\u0440$2",
         // ploshchad -> pl.
-        Regex("(?U)(?i)\\b\\u043F\\u043B\\u043E\\u0449\\u0430\\u0434\\u044C\\b") to "\u043F\u043B.",
+        Regex("(?i)(^|[^\\p{L}\\p{N}])\\u043F\\u043B\\u043E\\u0449\\u0430\\u0434\\u044C($|[^\\p{L}\\p{N}])") to "$1\u043F\u043B.$2",
         // proezd -> pr-d
-        Regex("(?U)(?i)\\b\\u043F\\u0440\\u043E\\u0435\\u0437\\u0434\\b") to "\u043F\u0440-\u0434"
+        Regex("(?i)(^|[^\\p{L}\\p{N}])\\u043F\\u0440\\u043E\\u0435\\u0437\\u0434($|[^\\p{L}\\p{N}])") to "$1\u043F\u0440-\u0434$2"
     )
 
     /**

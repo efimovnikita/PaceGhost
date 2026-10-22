@@ -63,22 +63,45 @@ class AndroidWalkGeocoder(
         maxResults: Int
     ): List<Address> {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            suspendCancellableCoroutine { continuation ->
-                geocoder.getFromLocation(lat, lon, maxResults, object : Geocoder.GeocodeListener {
-                    override fun onGeocode(addresses: MutableList<Address>) {
-                        continuation.resume(addresses)
-                    }
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                    suspendCancellableCoroutine { continuation ->
+                        try {
+                            geocoder.getFromLocation(lat, lon, maxResults, object : Geocoder.GeocodeListener {
+                                override fun onGeocode(addresses: MutableList<Address>) {
+                                    if (continuation.isActive) {
+                                        continuation.resume(addresses)
+                                    }
+                                }
 
-                    override fun onError(errorMessage: String?) {
-                        AppLogger.w(TAG, "Geocoder error: $errorMessage")
-                        continuation.resume(emptyList())
+                                override fun onError(errorMessage: String?) {
+                                    AppLogger.w(TAG, "Geocoder error: $errorMessage")
+                                    if (continuation.isActive) {
+                                        continuation.resume(emptyList())
+                                    }
+                                }
+                            })
+                        } catch (e: Exception) {
+                            AppLogger.w(TAG, "Failed to invoke getFromLocation: ${e.message}")
+                            if (continuation.isActive) {
+                                continuation.resume(emptyList())
+                            }
+                        }
                     }
-                })
+                } ?: emptyList()
+            } catch (e: Exception) {
+                AppLogger.w(TAG, "Exception during getFromLocationCompat: ${e.message}")
+                emptyList()
             }
         } else {
             withContext(Dispatchers.IO) {
-                @Suppress("DEPRECATION")
-                geocoder.getFromLocation(lat, lon, maxResults) ?: emptyList()
+                try {
+                    @Suppress("DEPRECATION")
+                    geocoder.getFromLocation(lat, lon, maxResults) ?: emptyList()
+                } catch (e: Exception) {
+                    AppLogger.w(TAG, "Legacy getFromLocation error: ${e.message}")
+                    emptyList()
+                }
             }
         }
     }
