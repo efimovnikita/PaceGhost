@@ -11,16 +11,17 @@ enum class FreeWalkFeedbackEvent {
 /**
  * Real-time pace coach engine for Free Walk mode.
  *
- * Evaluates user's rolling speed over a 20-30 second window against the configured
- * target speed and tolerance corridor. Emits feedback events with debounce and cooldowns.
+ * Evaluates user's rolling speed over a 35-second window against the configured
+ * target speed and tolerance corridor. Emits feedback events with a 5-second debounce,
+ * 35-second warmup, and bidirectional cross-cooldown anti-ping-pong protection.
  */
 class FreeWalkCoachEngine(
     var settings: VoiceSettings = VoiceSettings()
 ) {
     companion object {
-        const val ROLLING_WINDOW_SECONDS = 25L
-        const val DEBOUNCE_SECONDS = 3L
-        const val WARMUP_SECONDS = 15L
+        const val ROLLING_WINDOW_SECONDS = 35L
+        const val DEBOUNCE_SECONDS = 5L
+        const val WARMUP_SECONDS = 35L
         const val STATIONARY_SPEED_THRESHOLD_KMH = 1.5
     }
 
@@ -95,6 +96,8 @@ class FreeWalkCoachEngine(
                     (elapsedSeconds - lastBehindAlertTime) >= settings.behindCooldownSeconds
                 ) {
                     lastBehindAlertTime = elapsedSeconds
+                    // Anti-ping-pong: throttle ahead praise by ahead cooldown
+                    lastAheadAlertTime = elapsedSeconds
                     FreeWalkFeedbackEvent.SPEED_UP
                 } else {
                     FreeWalkFeedbackEvent.NONE
@@ -110,6 +113,8 @@ class FreeWalkCoachEngine(
                     (elapsedSeconds - lastAheadAlertTime) >= settings.aheadCooldownSeconds
                 ) {
                     lastAheadAlertTime = elapsedSeconds
+                    // Anti-ping-pong: throttle behind alert by behind cooldown
+                    lastBehindAlertTime = elapsedSeconds
                     FreeWalkFeedbackEvent.GOOD_PACE
                 } else {
                     FreeWalkFeedbackEvent.NONE

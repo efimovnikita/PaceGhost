@@ -25,10 +25,9 @@ class FreeWalkCoachEngineTest {
     @Test
     fun `warmup period produces no alerts`() {
         // Target is 5.0 km/h (1.388 m/s). Walk very slowly at 2.0 km/h (0.55 m/s)
-        var event = FreeWalkFeedbackEvent.NONE
-        for (sec in 1L..14L) {
+        for (sec in 1L..35L) {
             val dist = sec * 0.55
-            event = engine.update(distanceMeters = dist, elapsedSeconds = sec, isPaused = false)
+            val event = engine.update(distanceMeters = dist, elapsedSeconds = sec, isPaused = false)
             assertEquals("Should be NONE during warmup at sec=$sec", FreeWalkFeedbackEvent.NONE, event)
         }
     }
@@ -36,7 +35,7 @@ class FreeWalkCoachEngineTest {
     @Test
     fun `stationary speed below threshold produces no alerts`() {
         // Speed near zero (< 1.5 km/h)
-        for (sec in 1L..25L) {
+        for (sec in 1L..50L) {
             val dist = sec * 0.1 // 0.36 km/h
             val event = engine.update(distanceMeters = dist, elapsedSeconds = sec, isPaused = false)
             assertEquals("Should be NONE when stopped/stationary", FreeWalkFeedbackEvent.NONE, event)
@@ -48,7 +47,7 @@ class FreeWalkCoachEngineTest {
         // Target 5.0 km/h, tolerance 0.3 km/h -> range [4.7, 5.3].
         // Walk at 5.0 km/h = 1.3888 m/s
         var lastEvent = FreeWalkFeedbackEvent.NONE
-        for (sec in 1L..40L) {
+        for (sec in 1L..60L) {
             val dist = sec * 1.3888
             val event = engine.update(distanceMeters = dist, elapsedSeconds = sec, isPaused = false)
             if (event != FreeWalkFeedbackEvent.NONE) lastEvent = event
@@ -59,94 +58,112 @@ class FreeWalkCoachEngineTest {
     @Test
     fun `consistently slow walk triggers SPEED_UP right after warmup and debounce`() {
         // Walk slowly from start at 3.5 km/h (0.972 m/s).
-        // Warmup ends at sec 15.
-        for (sec in 1L..15L) {
+        // Warmup is 35s.
+        for (sec in 1L..35L) {
             val event = engine.update(distanceMeters = sec * 0.972, elapsedSeconds = sec, isPaused = false)
             assertEquals("Warmup should be silent at sec=$sec", FreeWalkFeedbackEvent.NONE, event)
         }
 
-        // sec 16: slow 1s
-        var event = engine.update(distanceMeters = 16 * 0.972, elapsedSeconds = 16L, isPaused = false)
-        assertEquals(FreeWalkFeedbackEvent.NONE, event)
+        // sec 36..39: slow 1..4s (debounce is 5s)
+        for (sec in 36L..39L) {
+            val event = engine.update(distanceMeters = sec * 0.972, elapsedSeconds = sec, isPaused = false)
+            assertEquals("Debounce period should be silent at sec=$sec", FreeWalkFeedbackEvent.NONE, event)
+        }
 
-        // sec 17: slow 2s
-        event = engine.update(distanceMeters = 17 * 0.972, elapsedSeconds = 17L, isPaused = false)
-        assertEquals(FreeWalkFeedbackEvent.NONE, event)
-
-        // sec 18: slow 3s (debounce satisfied!) -> SPEED_UP
-        event = engine.update(distanceMeters = 18 * 0.972, elapsedSeconds = 18L, isPaused = false)
+        // sec 40: slow 5s (debounce satisfied!) -> SPEED_UP
+        var event = engine.update(distanceMeters = 40 * 0.972, elapsedSeconds = 40L, isPaused = false)
         assertEquals(FreeWalkFeedbackEvent.SPEED_UP, event)
 
-        // sec 19..47: in cooldown (30s)
-        for (sec in 19L..47L) {
+        // sec 41..69: in cooldown (30s from sec 40 -> next at sec 70)
+        for (sec in 41L..69L) {
             event = engine.update(distanceMeters = sec * 0.972, elapsedSeconds = sec, isPaused = false)
             assertEquals("Should be in cooldown at sec=$sec", FreeWalkFeedbackEvent.NONE, event)
         }
 
-        // sec 48 (18 + 30): cooldown expires -> SPEED_UP again
-        event = engine.update(distanceMeters = 48 * 0.972, elapsedSeconds = 48L, isPaused = false)
+        // sec 70 (40 + 30): cooldown expires -> SPEED_UP again
+        event = engine.update(distanceMeters = 70 * 0.972, elapsedSeconds = 70L, isPaused = false)
         assertEquals(FreeWalkFeedbackEvent.SPEED_UP, event)
     }
 
     @Test
     fun `consistently fast walk triggers GOOD_PACE right after warmup and debounce`() {
         // Walk fast at 6.5 km/h (1.805 m/s)
-        for (sec in 1L..15L) {
+        for (sec in 1L..35L) {
             engine.update(distanceMeters = sec * 1.805, elapsedSeconds = sec, isPaused = false)
         }
 
-        // sec 16: fast 1s
-        var event = engine.update(distanceMeters = 16 * 1.805, elapsedSeconds = 16L, isPaused = false)
-        assertEquals(FreeWalkFeedbackEvent.NONE, event)
+        // sec 36..39: debounce
+        for (sec in 36L..39L) {
+            val event = engine.update(distanceMeters = sec * 1.805, elapsedSeconds = sec, isPaused = false)
+            assertEquals(FreeWalkFeedbackEvent.NONE, event)
+        }
 
-        // sec 17: fast 2s
-        event = engine.update(distanceMeters = 17 * 1.805, elapsedSeconds = 17L, isPaused = false)
-        assertEquals(FreeWalkFeedbackEvent.NONE, event)
-
-        // sec 18: fast 3s (debounce satisfied!) -> GOOD_PACE
-        event = engine.update(distanceMeters = 18 * 1.805, elapsedSeconds = 18L, isPaused = false)
+        // sec 40: fast 5s -> GOOD_PACE
+        var event = engine.update(distanceMeters = 40 * 1.805, elapsedSeconds = 40L, isPaused = false)
         assertEquals(FreeWalkFeedbackEvent.GOOD_PACE, event)
 
-        // Cooldown is 60s -> next at 18 + 60 = 78
-        for (sec in 19L..77L) {
+        // Cooldown is 60s -> next at 40 + 60 = 100
+        for (sec in 41L..99L) {
             event = engine.update(distanceMeters = sec * 1.805, elapsedSeconds = sec, isPaused = false)
             assertEquals(FreeWalkFeedbackEvent.NONE, event)
         }
 
-        event = engine.update(distanceMeters = 78 * 1.805, elapsedSeconds = 78L, isPaused = false)
+        event = engine.update(distanceMeters = 100 * 1.805, elapsedSeconds = 100L, isPaused = false)
         assertEquals(FreeWalkFeedbackEvent.GOOD_PACE, event)
     }
 
     @Test
-    fun `transition from target speed to slow speed triggers SPEED_UP after rolling window drops`() {
-        var distance = 0.0
-        // Walk at target speed (5.0 km/h = 1.3888 m/s) for 25 seconds
-        for (sec in 1L..25L) {
-            distance += 1.3888
-            engine.update(distanceMeters = distance, elapsedSeconds = sec, isPaused = false)
+    fun `anti-ping-pong blocks opposite praise immediately after speed up warning`() {
+        // 1. Warmup at slow speed (3.5 km/h) -> triggers SPEED_UP at sec 40
+        for (sec in 1L..40L) {
+            engine.update(distanceMeters = sec * 0.972, elapsedSeconds = sec, isPaused = false)
         }
 
-        // Now drop to 3.0 km/h = 0.8333 m/s
-        var triggeredSec = -1L
-        for (sec in 26L..50L) {
-            distance += 0.8333
-            val event = engine.update(distanceMeters = distance, elapsedSeconds = sec, isPaused = false)
-            if (event == FreeWalkFeedbackEvent.SPEED_UP) {
-                triggeredSec = sec
+        // 2. User immediately sprints to 7.0 km/h (1.944 m/s) to catch up
+        var currentDist = 40 * 0.972
+        var goodPaceFired = false
+        // Ahead cooldown is 60s. For the next 55 seconds (up to sec 95), GOOD_PACE must NOT fire!
+        for (sec in 41L..95L) {
+            currentDist += 1.944
+            val event = engine.update(distanceMeters = currentDist, elapsedSeconds = sec, isPaused = false)
+            if (event == FreeWalkFeedbackEvent.GOOD_PACE) {
+                goodPaceFired = true
                 break
             }
         }
 
-        // Should trigger within a few seconds after the rolling window crosses the lower threshold
-        assert(triggeredSec in 29L..36L) { "Expected SPEED_UP to trigger between sec 29 and 36, but got $triggeredSec" }
+        assertEquals("GOOD_PACE must be blocked by aheadCooldown after SPEED_UP to prevent ping-pong", false, goodPaceFired)
+    }
+
+    @Test
+    fun `anti-ping-pong blocks speed up warning immediately after good pace praise`() {
+        // 1. Fast speed triggers GOOD_PACE at sec 40
+        for (sec in 1L..40L) {
+            engine.update(distanceMeters = sec * 1.805, elapsedSeconds = sec, isPaused = false)
+        }
+
+        // 2. User slows down to 3.5 km/h. Behind cooldown is 30s.
+        var currentDist = 40 * 1.805
+        var speedUpFired = false
+        // For the next 25 seconds (up to sec 65), SPEED_UP must NOT fire!
+        for (sec in 41L..65L) {
+            currentDist += 0.972
+            val event = engine.update(distanceMeters = currentDist, elapsedSeconds = sec, isPaused = false)
+            if (event == FreeWalkFeedbackEvent.SPEED_UP) {
+                speedUpFired = true
+                break
+            }
+        }
+
+        assertEquals("SPEED_UP must be blocked by behindCooldown after GOOD_PACE to prevent ping-pong", false, speedUpFired)
     }
 
     @Test
     fun `paused state resets debounce and suppresses alerts`() {
-        for (sec in 1L..15L) {
+        for (sec in 1L..35L) {
             engine.update(distanceMeters = sec * 1.3888, elapsedSeconds = sec, isPaused = false)
         }
-        val event = engine.update(distanceMeters = 15 * 1.3888 + 5.0, elapsedSeconds = 16L, isPaused = true)
+        val event = engine.update(distanceMeters = 35 * 1.3888 + 5.0, elapsedSeconds = 36L, isPaused = true)
         assertEquals(FreeWalkFeedbackEvent.NONE, event)
     }
 }
