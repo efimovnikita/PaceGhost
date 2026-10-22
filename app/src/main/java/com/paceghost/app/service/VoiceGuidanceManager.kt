@@ -94,6 +94,16 @@ class VoiceGuidanceManager(
         speak(text)
     }
 
+    fun speakSpeedUp() {
+        val text = context.getString(R.string.voice_speed_up)
+        speak(text)
+    }
+
+    fun speakGoodPace() {
+        val text = context.getString(R.string.voice_good_pace)
+        speak(text)
+    }
+
     fun speak(text: String) {
         if (!isVoiceEnabled || !isInitialized) return
         val ttsEngine = tts ?: return

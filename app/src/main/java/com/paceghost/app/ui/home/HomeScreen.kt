@@ -373,6 +373,7 @@ fun HomeScreen(
         if (showVoiceSettingsDialog) {
             VoiceSettingsDialog(
                 initialSettings = voiceSettings,
+                medianSpeedKmh = viewModel.getMedianSpeedKmh(),
                 onSave = { newSettings ->
                     viewModel.saveVoiceSettings(newSettings)
                     showVoiceSettingsDialog = false

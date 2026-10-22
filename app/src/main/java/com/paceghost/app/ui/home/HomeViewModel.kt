@@ -7,7 +7,9 @@ import com.paceghost.app.data.gpx.GpxExporter
 import com.paceghost.app.data.local.AppDatabase
 import com.paceghost.app.data.local.VoiceSettingsPreferences
 import com.paceghost.app.data.local.entity.WalkEntity
+import com.paceghost.app.data.local.entity.calculateMedianSpeedKmh
 import com.paceghost.app.data.repository.WalkRepository
+import com.paceghost.app.data.local.entity.calculateMedianSpeedKmh
 import com.paceghost.app.data.repository.WalkRepositoryImpl
 import com.paceghost.app.domain.model.VoiceSettings
 import java.io.File
@@ -60,6 +62,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             repository.deleteWalk(id)
             _userMessage.emit("Walk deleted")
         }
+    }
+
+    fun getMedianSpeedKmh(): Double {
+        return walks.value.calculateMedianSpeedKmh()
     }
 
     fun saveVoiceSettings(settings: VoiceSettings) {

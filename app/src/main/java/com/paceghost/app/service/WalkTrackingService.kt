@@ -24,6 +24,8 @@ import com.paceghost.app.data.local.VoiceSettingsPreferences
 import com.paceghost.app.data.repository.WalkRepository
 import com.paceghost.app.data.repository.WalkRepositoryImpl
 import com.paceghost.app.domain.engine.AutoPauseDetector
+import com.paceghost.app.domain.engine.FreeWalkCoachEngine
+import com.paceghost.app.domain.engine.FreeWalkFeedbackEvent
 import com.paceghost.app.domain.engine.GeoMath
 import com.paceghost.app.domain.engine.GhostEngine
 import com.paceghost.app.domain.engine.KalmanLocationFilter
@@ -99,6 +101,7 @@ class WalkTrackingService : Service() {
 
     private val autoPauseDetector = AutoPauseDetector()
     private val ghostEngine = GhostEngine()
+    private val freeWalkCoachEngine = FreeWalkCoachEngine()
     private var walkSimulator = WalkSimulator()
 
     private val _walkState = MutableStateFlow(WalkState())
@@ -217,6 +220,8 @@ class WalkTrackingService : Service() {
             isAheadVoiceEnabled = voiceSettings.isAheadVoiceEnabled,
             aheadCooldownSeconds = voiceSettings.aheadCooldownSeconds
         )
+        freeWalkCoachEngine.settings = voiceSettings
+        freeWalkCoachEngine.reset()
 
         resetTrackingData()
         _walkState.value = WalkState(
@@ -420,7 +425,14 @@ class WalkTrackingService : Service() {
                         elapsedSeconds = newElapsed,
                         currentPaceSecondsPerKm = newPace
                     )
+                    if (state.ghostPoints.isEmpty()) {
+                        checkAndTriggerFreeWalkFeedback(state.distanceMeters, newElapsed, isPaused = false)
+                    }
                     updateNotification()
+                } else if (state.isTracking && (state.isPaused || state.isAutoPaused)) {
+                    if (state.ghostPoints.isEmpty()) {
+                        checkAndTriggerFreeWalkFeedback(state.distanceMeters, state.elapsedSeconds, isPaused = true)
+                    }
                 }
             }
         }
@@ -633,6 +645,7 @@ class WalkTrackingService : Service() {
             isAheadVoiceEnabled = settings.isAheadVoiceEnabled,
             aheadCooldownSeconds = settings.aheadCooldownSeconds
         )
+        freeWalkCoachEngine.settings = settings
     }
 
     fun setVoiceGuidanceEnabled(enabled: Boolean) {
@@ -671,6 +684,36 @@ class WalkTrackingService : Service() {
             voiceGuidanceManager.speakAheadReminder()
         } else if (result.shouldSpeakOffRoute) {
             voiceGuidanceManager.speakOffRoute()
+        }
+    }
+
+    private fun checkAndTriggerFreeWalkFeedback(
+        distanceMeters: Double,
+        elapsedSeconds: Long,
+        isPaused: Boolean
+    ) {
+        if (!voiceGuidanceManager.isVoiceEnabled) {
+            return
+        }
+
+        val event = freeWalkCoachEngine.update(
+            distanceMeters = distanceMeters,
+            elapsedSeconds = elapsedSeconds,
+            isPaused = isPaused
+        )
+
+        when (event) {
+            FreeWalkFeedbackEvent.SPEED_UP -> {
+                vibrationManager.vibrateBehind()
+                voiceGuidanceManager.speakSpeedUp()
+            }
+            FreeWalkFeedbackEvent.GOOD_PACE -> {
+                vibrationManager.vibrateAheadReminder()
+                voiceGuidanceManager.speakGoodPace()
+            }
+            FreeWalkFeedbackEvent.NONE -> {
+                // Silent
+            }
         }
     }
 
@@ -811,6 +854,7 @@ class WalkTrackingService : Service() {
         stepSensorManager.reset()
         autoPauseDetector.reset()
         ghostEngine.reset()
+        freeWalkCoachEngine.reset()
         AppLogger.d("WalkTrackingService", "resetTrackingData completed")
     }
 

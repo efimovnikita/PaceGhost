@@ -5,4 +5,7 @@
     <string name="voice_overtake">Great pace, ghost is behind!</string>
     <string name="voice_ahead_reminder">Fast pace, keep it up!</string>
     <string name="voice_off_route">You are off route</string>
+    <string name="voice_speed_up">Speed up!</string>
+    <string name="voice_good_pace">Good pace!</string>
+    <string name="reset_to_median">Reset to median speed</string>
 </resources>
