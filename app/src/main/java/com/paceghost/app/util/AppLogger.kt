@@ -21,6 +21,7 @@ object AppLogger {
     private val writeExecutor = Executors.newSingleThreadExecutor()
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
     private var logDir: File? = null
+    private var isCrashHandlerInstalled = false
 
     fun init(context: Context) {
         synchronized(this) {
@@ -29,8 +30,26 @@ object AppLogger {
                     if (!exists()) mkdirs()
                 }
             }
+            if (!isCrashHandlerInstalled) {
+                setupCrashHandler()
+                isCrashHandlerInstalled = true
+            }
         }
         i("AppLogger", "AppLogger initialized. OS: Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT}), Model: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+    }
+
+    private fun setupCrashHandler() {
+        val originalHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            try {
+                Log.e("AppLogger", "Uncaught exception on thread ${thread.name}", throwable)
+                writeLogEntryDirect("FATAL", "CrashHandler", "Uncaught exception on thread ${thread.name}: ${throwable.message}", throwable)
+            } catch (t: Throwable) {
+                Log.e("AppLogger", "Failed to log crash synchronously", t)
+            } finally {
+                originalHandler?.uncaughtException(thread, throwable)
+            }
+        }
     }
 
     fun d(tag: String, message: String) {
@@ -78,22 +97,28 @@ object AppLogger {
         val threadName = Thread.currentThread().name
 
         writeExecutor.execute {
-            val dir = logDir ?: return@execute
-            try {
-                val currentFile = File(dir, CURRENT_LOG_FILE)
-                checkRotation(currentFile, dir)
+            writeLogEntryDirect(level, tag, message, throwable)
+        }
+    }
 
-                FileWriter(currentFile, true).use { writer ->
-                    val stackTrace = throwable?.let {
-                        val sw = StringWriter()
-                        it.printStackTrace(PrintWriter(sw))
-                        "\n" + sw.toString()
-                    } ?: ""
-                    writer.write("[$timestamp][$level][$threadName][$tag] $message$stackTrace\n")
-                }
-            } catch (e: Exception) {
-                Log.e("AppLogger", "Failed to write log entry", e)
+    private fun writeLogEntryDirect(level: String, tag: String, message: String, throwable: Throwable?) {
+        val timestamp = synchronized(dateFormat) { dateFormat.format(Date()) }
+        val threadName = Thread.currentThread().name
+        val dir = logDir ?: return
+        try {
+            val currentFile = File(dir, CURRENT_LOG_FILE)
+            checkRotation(currentFile, dir)
+
+            FileWriter(currentFile, true).use { writer ->
+                val stackTrace = throwable?.let {
+                    val sw = StringWriter()
+                    it.printStackTrace(PrintWriter(sw))
+                    "\n" + sw.toString()
+                } ?: ""
+                writer.write("[$timestamp][$level][$threadName][$tag] $message$stackTrace\n")
             }
+        } catch (e: Exception) {
+            Log.e("AppLogger", "Failed to write log entry", e)
         }
     }
 

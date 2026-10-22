@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class ActiveWalkViewModel(
+class ActiveWalkViewModel @JvmOverloads constructor(
     application: Application,
     private val routeGeocoder: RouteGeocoder = AndroidWalkGeocoder(application)
 ) : AndroidViewModel(application) {
