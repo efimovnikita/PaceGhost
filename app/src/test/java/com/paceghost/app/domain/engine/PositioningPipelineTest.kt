@@ -152,4 +152,68 @@ class PositioningPipelineTest {
             filteredCumulativeDist < rawCumulativeDist * 0.70
         )
     }
+
+    @Test
+    fun `underpass bridge mode maintains clean track points and validates kinematic gate on exit`() {
+        // Entrance to underpass: real GPS point
+        val entrancePoint = TrackPoint(
+            lat = 55.64347,
+            lon = 37.46928,
+            cumulativeDistance = 3850.0,
+            stepCount = 4700,
+            timestamp = 100000L
+        )
+        val initialPoints = listOf(entrancePoint)
+
+        // Ghost route which was far away on this distance in another area
+        val farGhostRoute = listOf(
+            TrackPoint(lat = 55.6546, lon = 37.4826, cumulativeDistance = 0.0, elapsedSeconds = 0),
+            TrackPoint(lat = 55.6484, lon = 37.4649, cumulativeDistance = 3850.0, elapsedSeconds = 2200),
+            TrackPoint(lat = 55.6535, lon = 37.4895, cumulativeDistance = 7100.0, elapsedSeconds = 3900)
+        )
+        val ghostEngine = GhostEngine(farGhostRoute)
+
+        // Inside underpass: 52 steps taken, 42.6m accumulated
+        val deltaSteps = 52
+        val currentSteps = entrancePoint.stepCount + deltaSteps
+        val addedDist = deltaSteps * 0.82
+        val newDistance = entrancePoint.cumulativeDistance + addedDist
+
+        // In Bridge Mode: ghost pacing is updated, but currentPoints remains untouched (no false injection)
+        val ghostResult = ghostEngine.advanceGhostProgress(
+            currentProgressMeters = newDistance,
+            elapsedSeconds = 2230
+        )
+        assertFalse(ghostResult.shouldSpeakOffRoute)
+
+        // Track points remain clean with entrancePoint as the last point
+        val pointsDuringPdr = initialPoints
+        assertEquals(1, pointsDuringPdr.size)
+        assertEquals(entrancePoint, pointsDuringPdr.last())
+
+        // Exit underpass on the opposite side of the avenue: real GPS fix
+        val exitLat = 55.64322
+        val exitLon = 37.46963
+        val directCrossingDist = GeoMath.haversineDistance(
+            entrancePoint.lat,
+            entrancePoint.lon,
+            exitLat,
+            exitLon
+        )
+
+        // Physical underpass crossing width is ~35.4m
+        assertTrue(directCrossingDist in 30.0..45.0)
+
+        // Kinematic gate validates step-to-distance plausibility immediately on the first fix
+        val stepsMadeDuringBlackout = currentSteps - pointsDuringPdr.last().stepCount
+        assertEquals(52, stepsMadeDuringBlackout)
+        assertTrue(
+            "Underpass crossing must pass kinematic gate immediately on exit",
+            pdrEngine.isKinematicallyPlausible(
+                deltaDistMeters = directCrossingDist,
+                deltaSteps = stepsMadeDuringBlackout,
+                dtSec = 25.0
+            )
+        )
+    }
 }

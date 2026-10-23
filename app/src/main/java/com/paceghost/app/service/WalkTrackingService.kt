@@ -785,31 +785,19 @@ class WalkTrackingService : Service() {
                 val newDistance = currentState.distanceMeters + addedDistance
 
                 if (currentState.ghostPoints.isNotEmpty()) {
-                    // Ghost Mode: advance position along ghost route geometry
+                    // Ghost Mode: advance ghost progress and trigger audio/haptic feedback without injecting false coordinates (Bridge Mode)
                     val ghostResult = ghostEngine.advanceGhostProgress(
                         currentProgressMeters = newDistance,
                         elapsedSeconds = currentState.elapsedSeconds
                     )
                     checkAndTriggerFeedback(ghostResult)
 
-                    val projectedPoint = GeoMath.interpolatePointAtDistance(currentState.ghostPoints, newDistance)
-                    val pdrTrackPoint = projectedPoint.copy(
-                        timestamp = now,
-                        elapsedSeconds = currentState.elapsedSeconds,
-                        cumulativeDistance = newDistance,
-                        stepCount = steps,
-                        isPdr = true,
-                        accuracy = 25f
-                    )
-                    val updatedPoints = currentState.currentPoints + pdrTrackPoint
-
                     _walkState.value = currentState.copy(
                         distanceMeters = newDistance,
                         stepCount = steps,
                         gpsQuality = GpsQuality.PDR_ACTIVE,
-                        currentAccuracyMeters = 25f,
-                        ghostComparison = ghostResult,
-                        currentPoints = updatedPoints
+                        currentAccuracyMeters = 30f,
+                        ghostComparison = ghostResult
                     )
                 } else {
                     // Free Walk Mode: advance distance and steps accurately without compass distortion

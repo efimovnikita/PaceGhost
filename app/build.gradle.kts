@@ -13,8 +13,8 @@ android {
         applicationId = "com.paceghost.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "1.10.1"
+        versionCode = 17
+        versionName = "1.10.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
