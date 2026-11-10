@@ -34,6 +34,7 @@ class ActiveWalkViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
 
     private val repository: WalkRepository = WalkRepositoryImpl(
+        application,
         AppDatabase.getInstance(application, viewModelScope).walkDao()
     )
 

@@ -4,10 +4,10 @@
 
 **Blocked by:** 03: Full-Screen Heatmap Screen, Inverted Base Map, and Navigation
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Heatmap tile cache directory is localized in `context.cacheDir.resolve("heatmap_tiles")`
-- [ ] Saving a completed walk (`WalkRepository.insertWalk`) clears the heatmap cache directory
-- [ ] Importing GPX tracks (`GpxImporter`) triggers heatmap cache invalidation
-- [ ] Deleting a walk (`deleteWalk` or `clearAllWalks`) purges cached tiles
-- [ ] Subsequent views to `HeatmapScreen` cleanly re-rasterize tiles on-demand using current database contents
+- [x] Heatmap tile cache directory is localized in `context.cacheDir.resolve("heatmap_tiles")`
+- [x] Saving a completed walk (`WalkRepository.insertWalk` / `saveWalk`) clears the heatmap cache directory
+- [x] Importing GPX tracks (`GpxImporter`) triggers heatmap cache invalidation
+- [x] Deleting a walk (`deleteWalk` or `clearAllWalks`) purges cached tiles
+- [x] Subsequent views to `HeatmapScreen` cleanly re-rasterize tiles on-demand using current database contents

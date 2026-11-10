@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: WalkRepository = WalkRepositoryImpl(
+        application,
         AppDatabase.getInstance(application, viewModelScope).walkDao()
     )
 
@@ -61,6 +62,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.deleteWalk(id)
             _userMessage.emit("Walk deleted")
+        }
+    }
+
+    fun clearAllWalks() {
+        viewModelScope.launch {
+            repository.clearAllWalks()
+            _userMessage.emit("All walks cleared")
         }
     }
 

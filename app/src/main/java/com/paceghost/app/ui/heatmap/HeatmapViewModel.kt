@@ -29,6 +29,7 @@ class HeatmapViewModel(
     constructor(application: Application) : this(
         application,
         WalkRepositoryImpl(
+            application,
             AppDatabase.getInstance(application).walkDao()
         )
     )

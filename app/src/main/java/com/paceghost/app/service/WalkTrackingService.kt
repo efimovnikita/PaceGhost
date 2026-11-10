@@ -170,7 +170,7 @@ class WalkTrackingService : Service() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         val db = AppDatabase.getInstance(applicationContext, serviceScope)
-        repository = WalkRepositoryImpl(db.walkDao())
+        repository = WalkRepositoryImpl(applicationContext, db.walkDao())
 
         observeHapticFeedback()
         observeVoiceGuidance()

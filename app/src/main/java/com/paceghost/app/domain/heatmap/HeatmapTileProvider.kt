@@ -26,7 +26,7 @@ class HeatmapTileModuleProvider(
     private val context: Context,
     private val walkDao: WalkDao,
     private val rasterizer: HeatmapTileRasterizer = HeatmapTileRasterizer(),
-    val cacheDir: File = File(context.cacheDir, "heatmap_tiles"),
+    val cacheDir: File = HeatmapTileProvider.getCacheDir(context),
     threadPoolSize: Int = 2,
     pendingQueueSize: Int = 40
 ) : MapTileModuleProviderBase(threadPoolSize, pendingQueueSize) {
@@ -115,7 +115,7 @@ class HeatmapTileProvider(
     context: Context,
     walkDao: WalkDao,
     rasterizer: HeatmapTileRasterizer = HeatmapTileRasterizer(),
-    cacheDir: File = File(context.cacheDir, "heatmap_tiles"),
+    cacheDir: File = getCacheDir(context),
     registerReceiver: IRegisterReceiver = SimpleRegisterReceiver(context.applicationContext),
     tileSource: ITileSource = XYTileSource(
         "Heatmap",
@@ -140,4 +140,24 @@ class HeatmapTileProvider(
     override fun getMinimumZoomLevel(): Int = 1
     override fun getMaximumZoomLevel(): Int = 20
     override fun getTileWriter(): IFilesystemCache? = null
+
+    companion object {
+        const val CACHE_DIR_NAME = "heatmap_tiles"
+
+        /**
+         * Returns the localized disk cache directory for Personal Heatmap raster tiles:
+         * context.cacheDir.resolve("heatmap_tiles")
+         */
+        fun getCacheDir(context: Context): File = context.cacheDir.resolve(CACHE_DIR_NAME)
+
+        /**
+         * Clears all cached heatmap tiles on disk.
+         */
+        fun clearCache(context: Context): Boolean = getCacheDir(context).deleteRecursively()
+
+        /**
+         * Clears all cached heatmap tiles within the given directory.
+         */
+        fun clearCache(cacheDir: File): Boolean = cacheDir.deleteRecursively()
+    }
 }
