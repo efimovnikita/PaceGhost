@@ -7,7 +7,7 @@ Minimalist Android activity tracker featuring Ghost Pacing, OLED dark theme, and
 - Services: [`WalkTrackingService.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/service/WalkTrackingService.kt), [`VoiceGuidanceManager.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/service/VoiceGuidanceManager.kt), [`StepSensorManager.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/service/StepSensorManager.kt), [`WalkGeocoder.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/service/geocode/WalkGeocoder.kt)
 - UI (Jetpack Compose): [`HomeScreen.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/ui/home/HomeScreen.kt), [`ActiveWalkScreen.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/ui/active/ActiveWalkScreen.kt), [`VoiceSettingsDialog.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/ui/home/components/VoiceSettingsDialog.kt), [`HeatmapScreen.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/ui/heatmap/HeatmapScreen.kt), [`HeatmapMapView.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/ui/heatmap/components/HeatmapMapView.kt), [`HeatmapViewModel.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/ui/heatmap/HeatmapViewModel.kt)
 - Resources & Strings: [`strings.xml`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/res/values/strings.xml)
-- Local Storage: [`VoiceSettingsPreferences.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/data/local/VoiceSettingsPreferences.kt), Room DB in `data/local/`
+- Data & Repository: [`WalkRepository.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/data/repository/WalkRepository.kt), [`VoiceSettingsPreferences.kt`](file:///C:/Users/--/source/repos/PaceGhost/app/src/main/java/com/paceghost/app/data/local/VoiceSettingsPreferences.kt), Room DB in `data/local/`
 
 ## Core Standards
 1. **Strictly English UI & Audio**:
@@ -42,8 +42,10 @@ Minimalist Android activity tracker featuring Ghost Pacing, OLED dark theme, and
 
 ## Emulator & ADB Guidelines
 - ADB Path: `C:\Users\--\AppData\Local\Android\Sdk\platform-tools\adb.exe`
+- Emulator Launch: `$env:HTTP_PROXY="" ; $env:HTTPS_PROXY="" ; & "C:\Users\--\AppData\Local\Android\Sdk\emulator\emulator.exe" -avd <avd_name> -crash-report-mode disabled -no-snapshot-load -no-audio -no-boot-anim`
+- Emulator Graceful Shutdown: `& "C:\Users\--\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s <device_id> emu kill`
 - Always prefix ADB commands with device wait: `& "C:\Users\--\AppData\Local\Android\Sdk\platform-tools\adb.exe" wait-for-device ; ...`
 - When executing complex shell commands with pipes, loops, or inner quotes via ADB in PowerShell, wrap the command in single quotes to avoid PowerShell interpolation: `& $adb shell 'while [ ... ]; do ...; done'`
-- After starting an activity (`am start`), allow 2–3 seconds before taking screenshots so Compose finishes rendering.
+- After starting an activity (`am start`), allow 4–5 seconds on cold start for Android 12+ (API 31+) splash screen dismissal before taking screenshots.
 - When capturing screenshots for the user, immediately embed them into an artifact with `UserFacing: true`.
 - Target `rg` searches specifically inside `app/src/` to avoid scanning heavy `build/` and `.gradle/` directories.
