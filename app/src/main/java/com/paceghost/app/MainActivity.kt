@@ -11,8 +11,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
@@ -182,7 +182,7 @@ fun AppNavigation() {
 
     AnimatedContent(
         targetState = currentScreen,
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        transitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
         label = "ScreenTransition"
     ) { screen ->
         when (screen) {
