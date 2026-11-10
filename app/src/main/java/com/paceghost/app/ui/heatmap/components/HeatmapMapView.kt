@@ -29,13 +29,28 @@ import org.osmdroid.views.overlay.TilesOverlay
 
 /**
  * Controller allowing external Composable components (like floating action buttons)
- * to programmatically center or re-frame the heatmap.
+ * to programmatically center, re-frame, or zoom the heatmap.
  */
 class HeatmapMapController {
     internal var recenterAction: (() -> Unit)? = null
+    internal var zoomInAction: (() -> Unit)? = null
+    internal var zoomOutAction: (() -> Unit)? = null
+    internal var setZoomAction: ((Double) -> Unit)? = null
 
     fun recenter() {
         recenterAction?.invoke()
+    }
+
+    fun zoomIn() {
+        zoomInAction?.invoke()
+    }
+
+    fun zoomOut() {
+        zoomOutAction?.invoke()
+    }
+
+    fun setZoom(zoom: Double) {
+        setZoomAction?.invoke(zoom)
     }
 }
 
@@ -155,6 +170,15 @@ fun HeatmapMapView(
     LaunchedEffect(mapController, recentBounds) {
         mapController?.recenterAction = {
             centerOnRecentBounds(recentBounds, animated = true)
+        }
+        mapController?.zoomInAction = {
+            mapView.controller.zoomIn()
+        }
+        mapController?.zoomOutAction = {
+            mapView.controller.zoomOut()
+        }
+        mapController?.setZoomAction = { targetZoom ->
+            mapView.controller.setZoom(targetZoom)
         }
     }
 

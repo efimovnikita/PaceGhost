@@ -2,7 +2,9 @@ package com.paceghost.app.ui.heatmap
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -10,7 +12,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CenterFocusStrong
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -101,23 +105,56 @@ fun HeatmapScreen(
                 )
             }
 
-            // Recenter map FAB
-            FloatingActionButton(
-                onClick = { mapController.recenter() },
-                shape = CircleShape,
-                containerColor = CyanGhost,
-                contentColor = Color.Black,
+            // Floating control buttons (Zoom In, Zoom Out, Recenter)
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .padding(24.dp)
-                    .size(56.dp)
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.End
             ) {
-                Icon(
-                    imageVector = Icons.Filled.CenterFocusStrong,
-                    contentDescription = "Recenter Map",
-                    modifier = Modifier.size(24.dp)
-                )
+                FloatingActionButton(
+                    onClick = { mapController.zoomIn() },
+                    shape = CircleShape,
+                    containerColor = DarkBackground,
+                    contentColor = CyanGhost,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "Zoom In",
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                FloatingActionButton(
+                    onClick = { mapController.zoomOut() },
+                    shape = CircleShape,
+                    containerColor = DarkBackground,
+                    contentColor = CyanGhost,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Remove,
+                        contentDescription = "Zoom Out",
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                FloatingActionButton(
+                    onClick = { mapController.recenter() },
+                    shape = CircleShape,
+                    containerColor = CyanGhost,
+                    contentColor = Color.Black,
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CenterFocusStrong,
+                        contentDescription = "Recenter Map",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
     }
