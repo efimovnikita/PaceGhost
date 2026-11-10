@@ -143,23 +143,28 @@ class HeatmapTileRasterizerTest {
     }
 
     @Test
-    fun paintConfiguration_matchesTwoPassGlowSpecs() {
+    fun paintConfiguration_matchesSoftDensitySpecs() {
         val auraPaint = rasterizer.createAuraPaint()
         val corePaint = rasterizer.createCorePaint()
 
-        assertEquals(8f, auraPaint.strokeWidth, 0.01f)
+        assertEquals(56f, auraPaint.strokeWidth, 0.01f)
         assertEquals(HeatmapTileRasterizer.AURA_COLOR_DEFAULT, auraPaint.color)
         assertEquals(Paint.Cap.ROUND, auraPaint.strokeCap)
         assertEquals(Paint.Join.ROUND, auraPaint.strokeJoin)
         assertEquals(Paint.Style.STROKE, auraPaint.style)
         assertNotNull(auraPaint.xfermode)
 
-        assertEquals(2f, corePaint.strokeWidth, 0.01f)
+        assertEquals(12f, corePaint.strokeWidth, 0.01f)
         assertEquals(HeatmapTileRasterizer.CORE_COLOR_DEFAULT, corePaint.color)
         assertEquals(Paint.Cap.ROUND, corePaint.strokeCap)
         assertEquals(Paint.Join.ROUND, corePaint.strokeJoin)
         assertEquals(Paint.Style.STROKE, corePaint.style)
         assertNotNull(corePaint.xfermode)
+
+        // Verify multi-tier soft density diffusion tiers
+        assertEquals(5, rasterizer.densityTiers.size)
+        assertEquals(56f, rasterizer.densityTiers[0].strokeWidth, 0.01f)
+        assertEquals(4f, rasterizer.densityTiers.last().strokeWidth, 0.01f)
     }
 
     @Test

@@ -11,17 +11,26 @@ import com.paceghost.app.domain.engine.GeoMath
 import java.io.ByteArrayOutputStream
 
 /**
- * Two-pass glowing tile rasterizer producing transparent PNG tiles in the Cyber Neon Ramp spectrum.
+ * Density tier defining stroke width, radius and color for soft radial diffusion.
+ */
+data class HeatmapDensityTier(
+    val strokeWidth: Float,
+    val color: Int
+)
+
+/**
+ * Soft Density Heatmap tile rasterizer producing transparent PNG tiles in the Cyber Neon spectrum.
  *
- * Pass 1: Wide low-alpha aura (CyanGhost tinted).
- * Pass 2: Thin saturated core (NeonGreenRunner tinted).
- * Blending: [PorterDuff.Mode.ADD] additive blending so overlapping routes intensify into white-hot neon.
+ * Utilizes multi-tiered radial diffusion with [PorterDuff.Mode.ADD] additive blending:
+ * single routes appear as a gentle ambient thermal wash (56px wide), while repeated or intersecting
+ * routes intensify into glowing neon green and white-hot cores.
  */
 class HeatmapTileRasterizer(
     val auraWidthPx: Float = AURA_WIDTH_DEFAULT,
     val coreWidthPx: Float = CORE_WIDTH_DEFAULT,
     val auraColor: Int = AURA_COLOR_DEFAULT,
-    val coreColor: Int = CORE_COLOR_DEFAULT
+    val coreColor: Int = CORE_COLOR_DEFAULT,
+    val densityTiers: List<HeatmapDensityTier> = DEFAULT_DENSITY_TIERS
 ) {
 
     /**
@@ -62,8 +71,9 @@ class HeatmapTileRasterizer(
         val bitmap = Bitmap.createBitmap(tileSize, tileSize, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        val paths = validSegments.map { segment ->
-            Path().apply {
+        val pathsWithPoints = validSegments.map { segment ->
+            val pts = mutableListOf<Pair<Float, Float>>()
+            val path = Path().apply {
                 val first = segment.first()
                 val (x0, y0) = WebMercatorProjection.projectToTilePixel(
                     lat = first.first,
@@ -74,6 +84,7 @@ class HeatmapTileRasterizer(
                     tileSize = tileSize
                 )
                 moveTo(x0, y0)
+                pts.add(x0 to y0)
                 for (i in 1 until segment.size) {
                     val pt = segment[i]
                     val (x, y) = WebMercatorProjection.projectToTilePixel(
@@ -85,11 +96,13 @@ class HeatmapTileRasterizer(
                         tileSize = tileSize
                     )
                     lineTo(x, y)
+                    pts.add(x to y)
                 }
             }
+            Pair(path, pts)
         }
 
-        drawTwoPassGlow(canvas, paths)
+        drawDensityHeatmap(canvas, pathsWithPoints)
         return bitmap
     }
 
@@ -133,17 +146,36 @@ class HeatmapTileRasterizer(
     }
 
     internal fun drawTwoPassGlow(canvas: Canvas, paths: List<Path>) {
-        val auraPaint = createAuraPaint()
-        val corePaint = createCorePaint()
+        val pathsWithEmptyPoints = paths.map { it to emptyList<Pair<Float, Float>>() }
+        drawDensityHeatmap(canvas, pathsWithEmptyPoints)
+    }
 
-        // Pass 1: Wide aura ambient glow
-        for (path in paths) {
-            canvas.drawPath(path, auraPaint)
-        }
+    internal fun drawDensityHeatmap(
+        canvas: Canvas,
+        pathsWithPoints: List<Pair<Path, List<Pair<Float, Float>>>>
+    ) {
+        for (tier in densityTiers) {
+            val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE
+                strokeCap = Paint.Cap.ROUND
+                strokeJoin = Paint.Join.ROUND
+                strokeWidth = tier.strokeWidth
+                color = tier.color
+                xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
+            }
+            val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.FILL
+                color = tier.color
+                xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
+            }
+            val pointRadius = tier.strokeWidth / 2f
 
-        // Pass 2: Sharp saturated neon core
-        for (path in paths) {
-            canvas.drawPath(path, corePaint)
+            for ((path, pts) in pathsWithPoints) {
+                canvas.drawPath(path, strokePaint)
+                for ((px, py) in pts) {
+                    canvas.drawCircle(px, py, pointRadius, fillPaint)
+                }
+            }
         }
     }
 
@@ -195,8 +227,9 @@ class HeatmapTileRasterizer(
         val bitmap = Bitmap.createBitmap(tileSize, tileSize, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        val paths = segments.map { segment ->
-            Path().apply {
+        val pathsWithPoints = segments.map { segment ->
+            val pts = mutableListOf<Pair<Float, Float>>()
+            val path = Path().apply {
                 val first = segment.first()
                 val (x0, y0) = WebMercatorProjection.projectToTilePixel(
                     lat = first.latitude,
@@ -207,6 +240,7 @@ class HeatmapTileRasterizer(
                     tileSize = tileSize
                 )
                 moveTo(x0, y0)
+                pts.add(x0 to y0)
                 for (i in 1 until segment.size) {
                     val pt = segment[i]
                     val (x, y) = WebMercatorProjection.projectToTilePixel(
@@ -218,23 +252,37 @@ class HeatmapTileRasterizer(
                         tileSize = tileSize
                     )
                     lineTo(x, y)
+                    pts.add(x to y)
                 }
             }
+            Pair(path, pts)
         }
 
-        drawTwoPassGlow(canvas, paths)
+        drawDensityHeatmap(canvas, pathsWithPoints)
         return bitmap
     }
 
     companion object {
-        const val AURA_WIDTH_DEFAULT = 8f
-        const val CORE_WIDTH_DEFAULT = 2f
+        const val AURA_WIDTH_DEFAULT = 56f
+        const val CORE_WIDTH_DEFAULT = 12f
 
-        // CyanGhost (#00E5FF) at 20% alpha -> 0x3300E5FF
-        const val AURA_COLOR_DEFAULT = 0x3300E5FF.toInt()
+        // CyanGhost (#00E5FF) ambient thermal spread
+        const val AURA_COLOR_DEFAULT = 0x1800E5FF.toInt()
 
-        // NeonGreenRunner (#39FF14) at 60% alpha -> 0x9939FF14
-        const val CORE_COLOR_DEFAULT = 0x9939FF14.toInt()
+        // NeonGreenRunner (#39FF14) saturated thermal core
+        const val CORE_COLOR_DEFAULT = 0x3C39FF14.toInt()
+
+        /**
+         * Soft Density Heatmap radial falloff tiers:
+         * 5-layer bell-shaped Gaussian diffusion from wide ambient fog (56px) down to white-hot core.
+         */
+        val DEFAULT_DENSITY_TIERS = listOf(
+            HeatmapDensityTier(strokeWidth = 56f, color = 0x1200E5FF.toInt()), // Wide ambient thermal fog (~28px radius)
+            HeatmapDensityTier(strokeWidth = 36f, color = 0x1C00E5FF.toInt()), // Outer cyan thermal spread (~18px radius)
+            HeatmapDensityTier(strokeWidth = 22f, color = 0x2A00FF99.toInt()), // Mid cyan-green thermal corridor (~11px radius)
+            HeatmapDensityTier(strokeWidth = 12f, color = 0x3C00FF66.toInt()), // Saturated neon green core (~6px radius)
+            HeatmapDensityTier(strokeWidth = 4f,  color = 0x5099FFBB.toInt())  // White-hot center spine (~2px radius)
+        )
 
         // Maximum distance in meters between consecutive points before splitting into separate polylines
         const val MAX_SEGMENT_GAP_METERS = 500.0
