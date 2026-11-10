@@ -4,12 +4,12 @@
 
 **Blocked by:** 05: Android Emulator Verification and User Screenshot Sign-off
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] `versionCode` and `versionName` bumped in `app/build.gradle.kts`
-- [ ] `pwsh scripts/check_localization.ps1` passes with 0 violations
-- [ ] `pwsh scripts/check_android_compat.ps1` passes with 0 violations
-- [ ] `.\gradlew.bat testDebugUnitTest` runs with all tests green
-- [ ] All changes committed to git with a descriptive commit message
-- [ ] Annotated git tag `vX.Y.Z` created
-- [ ] `main` branch and `vX.Y.Z` tag pushed to remote (`origin`), triggering `.github/workflows/release.yml` for automated APK build and GitHub Release creation
+- [x] `versionCode` and `versionName` bumped in `app/build.gradle.kts`
+- [x] `pwsh scripts/check_localization.ps1` passes with 0 violations
+- [x] `pwsh scripts/check_android_compat.ps1` passes with 0 violations
+- [x] `.\gradlew.bat testDebugUnitTest` runs with all tests green
+- [x] All changes committed to git with a descriptive commit message
+- [x] Annotated git tag `v1.11.0` created
+- [x] `main` branch and `v1.11.0` tag pushed to remote (`origin`), triggering `.github/workflows/release.yml` for automated APK build and GitHub Release creation
