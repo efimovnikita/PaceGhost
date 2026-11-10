@@ -4,10 +4,10 @@
 
 **Blocked by:** 01: Room Spatial Index and Bounding Box Query
 
-**Status:** ready-for-agent
+**Status:** complete
 
-- [ ] Web Mercator coordinate conversion functions correctly map tile `(z, x, y)` to bounding box `[minLat, minLon, maxLat, maxLon]` with edge padding to prevent border clipping
-- [ ] GPS coordinates project accurately to tile pixel coordinates `(0..255, 0..255)`
-- [ ] Two-pass glow painter renders route segments with wide aura (`CyanGhost` tinted) and thin core (`NeonGreenRunner` tinted)
-- [ ] Multiple overlapping routes increase opacity and brightness via additive/alpha blending into white-hot neon
-- [ ] Unit tests verify tile coordinate math and ensure empty bounding boxes produce completely transparent tiles without allocations
+- [x] Web Mercator coordinate conversion functions correctly map tile `(z, x, y)` to bounding box `[minLat, minLon, maxLat, maxLon]` with edge padding to prevent border clipping
+- [x] GPS coordinates project accurately to tile pixel coordinates `(0..255, 0..255)`
+- [x] Two-pass glow painter renders route segments with wide aura (`CyanGhost` tinted) and thin core (`NeonGreenRunner` tinted)
+- [x] Multiple overlapping routes increase opacity and brightness via additive/alpha blending into white-hot neon
+- [x] Unit tests verify tile coordinate math and ensure empty bounding boxes produce completely transparent tiles without allocations
