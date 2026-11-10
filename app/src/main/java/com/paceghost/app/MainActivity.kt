@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.ContextCompat
 import com.paceghost.app.ui.active.ActiveWalkScreen
+import com.paceghost.app.ui.heatmap.HeatmapScreen
 import com.paceghost.app.ui.home.HomeScreen
 import com.paceghost.app.ui.preview.TrackPreviewScreen
 import com.paceghost.app.ui.theme.CyanGhost
@@ -45,6 +46,7 @@ import com.paceghost.app.ui.theme.TextSecondary
 
 sealed interface Screen {
     object Home : Screen
+    object Heatmap : Screen
     data class ActiveWalk(val ghostWalkId: Long, val isDemo: Boolean) : Screen
     data class TrackPreview(val walkId: Long) : Screen
 }
@@ -191,6 +193,16 @@ fun AppNavigation() {
                     },
                     onPreviewTrack = { walkId ->
                         currentScreen = Screen.TrackPreview(walkId = walkId)
+                    },
+                    onOpenHeatmap = {
+                        currentScreen = Screen.Heatmap
+                    }
+                )
+            }
+            is Screen.Heatmap -> {
+                HeatmapScreen(
+                    onNavigateBack = {
+                        currentScreen = Screen.Home
                     }
                 )
             }

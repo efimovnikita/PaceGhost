@@ -4,11 +4,11 @@
 
 **Blocked by:** 02: Web Mercator Projection and Two-Pass Glow Tile Rasterizer
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] `MainActivity` navigation supports `Screen.Heatmap`
-- [ ] `HomeScreen` TopAppBar features a compact `IconButton` with `Icons.Filled.Layers` and `contentDescription = "Personal Heatmap"` without breaking title layout or causing text wrap
-- [ ] Base OpenStreetMap tiles render in dark inverted mode using `ColorMatrixColorFilter` over a pure black `#000000` canvas
-- [ ] `TilesOverlay` loads generated heatmap tiles from local cache on-demand without freezing the UI thread
-- [ ] Screen includes top app bar with back navigation and a floating button to center the map on recent walk bounds
-- [ ] All user-facing UI strings and content descriptions strictly adhere to English
+- [x] `MainActivity` navigation supports `Screen.Heatmap`
+- [x] `HomeScreen` TopAppBar features a compact `IconButton` with `Icons.Filled.Layers` and `contentDescription = "Personal Heatmap"` without breaking title layout or causing text wrap
+- [x] Base OpenStreetMap tiles render in dark inverted mode using `ColorMatrixColorFilter` over a pure black `#000000` canvas
+- [x] `TilesOverlay` loads generated heatmap tiles from local cache on-demand without freezing the UI thread
+- [x] Screen includes top app bar with back navigation and a floating button to center the map on recent walk bounds
+- [x] All user-facing UI strings and content descriptions strictly adhere to English

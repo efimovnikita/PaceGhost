@@ -3,6 +3,7 @@ package com.paceghost.app
 import android.app.Application
 import com.paceghost.app.service.geocode.RouteGeocoder
 import com.paceghost.app.ui.active.ActiveWalkViewModel
+import com.paceghost.app.ui.heatmap.HeatmapViewModel
 import com.paceghost.app.ui.home.HomeViewModel
 import com.paceghost.app.ui.preview.TrackPreviewViewModel
 import org.junit.Assert.assertNotNull
@@ -30,5 +31,6 @@ class ActiveWalkViewModelTest {
         assertNotNull(HomeViewModel::class.java.getConstructor(Application::class.java))
         assertNotNull(TrackPreviewViewModel::class.java.getConstructor(Application::class.java))
         assertNotNull(ActiveWalkViewModel::class.java.getConstructor(Application::class.java))
+        assertNotNull(HeatmapViewModel::class.java.getConstructor(Application::class.java))
     }
 }

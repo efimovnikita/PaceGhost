@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Settings
@@ -82,6 +83,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     onStartWalk: (ghostWalkId: Long, isDemo: Boolean) -> Unit,
     onPreviewTrack: (Long) -> Unit = {},
+    onOpenHeatmap: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -179,6 +181,19 @@ fun HomeScreen(
                     }
 
                     Spacer(modifier = Modifier.width(4.dp))
+
+                    // Personal Heatmap Button
+                    IconButton(
+                        onClick = onOpenHeatmap,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Layers,
+                            contentDescription = "Personal Heatmap",
+                            tint = CyanGhost,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
 
                     // Import GPX Button
                     IconButton(
