@@ -51,9 +51,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (enabled) {
             viewModelScope.launch {
                 val db = AppDatabase.getInstance(getApplication())
-                if (db.walkDao().getWalkCount() == 0) {
-                    AppDatabase.populateDemoWalk(db)
-                }
+                AppDatabase.populateDemoWalk(db)
+                repository.clearHeatmapCache()
             }
         }
     }

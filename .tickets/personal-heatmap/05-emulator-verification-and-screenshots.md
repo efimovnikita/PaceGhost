@@ -4,11 +4,11 @@
 
 **Blocked by:** 04: Repository Integration and Heatmap Tile Cache Invalidation
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Debug APK builds cleanly via `.\gradlew.bat assembleDebug` and installs on the running Android emulator
-- [ ] App launches via ADB without crashes or runtime exceptions
-- [ ] At least two overlapping demo walks are populated in the database
-- [ ] User navigates to `HeatmapScreen` and map tiles render correctly with glowing neon traces over inverted dark streets
-- [ ] High-resolution screenshots captured via ADB (`screencap -p /sdcard/...`) and pulled to disk
-- [ ] Screenshots embedded in a session artifact (`UserFacing: true`) and presented to the user for formal approval before any git commit
+- [x] Debug APK builds cleanly via `.\gradlew.bat assembleDebug` and installs on the running Android emulator
+- [x] App launches via ADB without crashes or runtime exceptions
+- [x] At least two overlapping demo walks are populated in the database
+- [x] User navigates to `HeatmapScreen` and map tiles render correctly with glowing neon traces over inverted dark streets
+- [x] High-resolution screenshots captured via ADB (`screencap -p /sdcard/...`) and pulled to disk
+- [x] Screenshots embedded in a session artifact (`UserFacing: true`) and presented to the user for formal approval before any git commit

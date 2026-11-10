@@ -61,11 +61,22 @@ abstract class AppDatabase : RoomDatabase() {
 
         suspend fun populateDemoWalk(database: AppDatabase) {
             val dao = database.walkDao()
-            if (dao.getWalkCount() == 0) {
-                val (walk, points) = DemoDataGenerator.createDemoWalkData()
-                val walkId = dao.insertWalk(walk)
-                val pointsWithWalkId = points.map { it.copy(walkId = walkId) }
-                dao.insertTrackPoints(pointsWithWalkId)
+            val currentCount = dao.getWalkCount()
+            if (currentCount == 0) {
+                val (walk1, points1) = DemoDataGenerator.createDemoWalkData()
+                val walkId1 = dao.insertWalk(walk1)
+                val pointsWithWalkId1 = points1.map { it.copy(walkId = walkId1) }
+                dao.insertTrackPoints(pointsWithWalkId1)
+
+                val (walk2, points2) = DemoDataGenerator.createSecondDemoWalkData()
+                val walkId2 = dao.insertWalk(walk2)
+                val pointsWithWalkId2 = points2.map { it.copy(walkId = walkId2) }
+                dao.insertTrackPoints(pointsWithWalkId2)
+            } else if (currentCount == 1) {
+                val (walk2, points2) = DemoDataGenerator.createSecondDemoWalkData()
+                val walkId2 = dao.insertWalk(walk2)
+                val pointsWithWalkId2 = points2.map { it.copy(walkId = walkId2) }
+                dao.insertTrackPoints(pointsWithWalkId2)
             }
         }
     }
