@@ -155,6 +155,65 @@ class HeatmapTileProviderTest {
         assertEquals(256, bitmapDrawable.bitmap.height)
     }
 
+    private class TrackingWalkDao(private val delegate: WalkDao) : WalkDao by delegate {
+        var getPointsInBoundingBoxCallCount: Int = 0
+            private set
+
+        override suspend fun getPointsInBoundingBox(
+            minLat: Double,
+            maxLat: Double,
+            minLon: Double,
+            maxLon: Double
+        ): List<TrackPointEntity> {
+            getPointsInBoundingBoxCallCount++
+            return delegate.getPointsInBoundingBox(minLat, maxLat, minLon, maxLon)
+        }
+    }
+
+    @Test
+    fun minimumZoomLevel_isEnforcedToTen() {
+        assertEquals(10, HeatmapTileProvider.MIN_HEATMAP_ZOOM)
+        assertEquals(10, HeatmapTileModuleProvider.MIN_HEATMAP_ZOOM)
+        assertEquals(10, tileModuleProvider.minimumZoomLevel)
+
+        val provider = HeatmapTileProvider(
+            context = context,
+            walkDao = walkDao,
+            rasterizer = HeatmapTileRasterizer(),
+            cacheDir = cacheDir
+        )
+        assertEquals(10, provider.minimumZoomLevel)
+        assertEquals(10, provider.tileSource.minimumZoomLevel)
+    }
+
+    @Test
+    fun getOrRenderTile_belowMinimumZoom_returnsNullWithoutQueryingDao() = runBlocking {
+        val trackingDao = TrackingWalkDao(walkDao)
+        val moduleProvider = HeatmapTileModuleProvider(
+            context = context,
+            walkDao = trackingDao,
+            rasterizer = HeatmapTileRasterizer(),
+            cacheDir = cacheDir
+        )
+
+        val belowMinZooms = listOf(0, 5, 8, 9)
+        for (zoom in belowMinZooms) {
+            val result = moduleProvider.getOrRenderTile(zoom = zoom, tileX = 0, tileY = 0)
+            assertNull("Tile rendered below MIN_HEATMAP_ZOOM ($zoom) must immediately return null", result)
+        }
+
+        // Verify tileLoader.loadTile below min zoom also returns null without DB access
+        val tileIndexZoom9 = MapTileIndex.getTileIndex(9, 100, 100)
+        val drawable = moduleProvider.tileLoader.loadTile(tileIndexZoom9)
+        assertNull("loadTile at zoom 9 must return null", drawable)
+
+        assertEquals(
+            "SQLite database must not be queried for tiles with zoom < MIN_HEATMAP_ZOOM",
+            0,
+            trackingDao.getPointsInBoundingBoxCallCount
+        )
+    }
+
     @Test
     fun heatmapTileProvider_createsTilesOverlayCompatibleProvider() {
         val provider = HeatmapTileProvider(
@@ -165,7 +224,8 @@ class HeatmapTileProviderTest {
         )
 
         assertEquals("Heatmap", provider.tileSource.name())
-        assertEquals(1, provider.minimumZoomLevel)
+        assertEquals(HeatmapTileProvider.MIN_HEATMAP_ZOOM, provider.minimumZoomLevel)
+        assertEquals(HeatmapTileProvider.MIN_HEATMAP_ZOOM, provider.tileSource.minimumZoomLevel)
         assertEquals(20, provider.maximumZoomLevel)
         assertNotNull("Tile cache should be present", provider.tileCache)
     }

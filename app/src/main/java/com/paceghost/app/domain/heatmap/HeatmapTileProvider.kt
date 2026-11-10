@@ -41,7 +41,7 @@ class HeatmapTileModuleProvider(
 
     override fun getUsesDataConnection(): Boolean = false
 
-    override fun getMinimumZoomLevel(): Int = 1
+    override fun getMinimumZoomLevel(): Int = MIN_HEATMAP_ZOOM
 
     override fun getMaximumZoomLevel(): Int = 20
 
@@ -61,6 +61,10 @@ class HeatmapTileModuleProvider(
     }
 
     fun getOrRenderTile(zoom: Int, tileX: Int, tileY: Int): Bitmap? {
+        if (zoom < MIN_HEATMAP_ZOOM) {
+            return null
+        }
+
         val cachedFile = File(cacheDir, "$zoom/$tileX/$tileY.png")
         if (cachedFile.exists() && cachedFile.length() > 0) {
             try {
@@ -106,6 +110,10 @@ class HeatmapTileModuleProvider(
 
         return bitmap
     }
+
+    companion object {
+        const val MIN_HEATMAP_ZOOM = HeatmapTileProvider.MIN_HEATMAP_ZOOM
+    }
 }
 
 /**
@@ -119,7 +127,7 @@ class HeatmapTileProvider(
     registerReceiver: IRegisterReceiver = SimpleRegisterReceiver(context.applicationContext),
     tileSource: ITileSource = XYTileSource(
         "Heatmap",
-        1,
+        MIN_HEATMAP_ZOOM,
         20,
         WebMercatorProjection.DEFAULT_TILE_SIZE,
         ".png",
@@ -137,11 +145,12 @@ class HeatmapTileProvider(
         )
     )
 ) {
-    override fun getMinimumZoomLevel(): Int = 1
+    override fun getMinimumZoomLevel(): Int = MIN_HEATMAP_ZOOM
     override fun getMaximumZoomLevel(): Int = 20
     override fun getTileWriter(): IFilesystemCache? = null
 
     companion object {
+        const val MIN_HEATMAP_ZOOM = 10
         const val CACHE_DIR_NAME = "heatmap_tiles"
 
         /**
