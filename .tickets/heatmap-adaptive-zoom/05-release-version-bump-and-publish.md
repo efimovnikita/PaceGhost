@@ -4,13 +4,13 @@
 
 **Blocked by:** 04: End-to-End Emulator Verification
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Bump `versionCode = 19` and `versionName = "1.12.0"` in `app/build.gradle.kts`.
-- [ ] Run localization check: `pwsh scripts/check_localization.ps1`.
-- [ ] Run compatibility check: `pwsh scripts/check_android_compat.ps1`.
-- [ ] Run full unit test suite: `.\gradlew.bat testDebugUnitTest`.
-- [ ] Commit all changes with message: `chore(release): bump version to 1.12.0 for adaptive heatmap zoom`.
-- [ ] Create annotated git tag: `git tag -a v1.12.0 -m "Release v1.12.0"`.
-- [ ] Push main branch and release tag: `git push origin main ; git push origin v1.12.0`.
-- [ ] Verify GitHub Actions release workflow initiates build and publication of signed APK.
+- [x] Bump `versionCode = 19` and `versionName = "1.12.0"` in `app/build.gradle.kts`.
+- [x] Run localization check: `pwsh scripts/check_localization.ps1`.
+- [x] Run compatibility check: `pwsh scripts/check_android_compat.ps1`.
+- [x] Run full unit test suite: `.\gradlew.bat testDebugUnitTest`.
+- [x] Commit all changes with message: `chore(release): bump version to 1.12.0 for adaptive heatmap zoom`.
+- [x] Create annotated git tag: `git tag -a v1.12.0 -m "Release v1.12.0"`.
+- [x] Push main branch and release tag: `git push origin main ; git push origin v1.12.0`.
+- [x] Verify GitHub Actions release workflow initiates build and publication of signed APK.
