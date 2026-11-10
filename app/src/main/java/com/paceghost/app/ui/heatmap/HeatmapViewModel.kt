@@ -4,8 +4,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.paceghost.app.data.local.AppDatabase
+import com.paceghost.app.data.local.HeatmapPreferences
 import com.paceghost.app.data.repository.WalkRepository
 import com.paceghost.app.data.repository.WalkRepositoryImpl
+import com.paceghost.app.domain.heatmap.HeatmapTileProvider
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +17,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
+import java.io.File
 
 data class HeatmapUiState(
     val isLoading: Boolean = true,
@@ -21,24 +26,29 @@ data class HeatmapUiState(
     val hasWalks: Boolean = false
 )
 
-class HeatmapViewModel(
+class HeatmapViewModel @JvmOverloads constructor(
     application: Application,
-    private val repository: WalkRepository
-) : AndroidViewModel(application) {
-
-    constructor(application: Application) : this(
+    private val repository: WalkRepository = WalkRepositoryImpl(
         application,
-        WalkRepositoryImpl(
-            application,
-            AppDatabase.getInstance(application).walkDao()
-        )
-    )
+        AppDatabase.getInstance(application).walkDao()
+    ),
+    private val heatmapPreferences: HeatmapPreferences = HeatmapPreferences(application),
+    private val heatmapCacheDir: File = HeatmapTileProvider.getCacheDir(application),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(HeatmapUiState())
     val uiState: StateFlow<HeatmapUiState> = _uiState.asStateFlow()
 
     init {
+        purgeOutdatedCache()
         loadRecentBounds()
+    }
+
+    fun purgeOutdatedCache() {
+        viewModelScope.launch(ioDispatcher) {
+            heatmapPreferences.purgeOutdatedCacheIfNeeded(heatmapCacheDir)
+        }
     }
 
     fun loadRecentBounds() {

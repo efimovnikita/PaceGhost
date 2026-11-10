@@ -152,6 +152,7 @@ class HeatmapTileProvider(
     companion object {
         const val MIN_HEATMAP_ZOOM = 10
         const val CACHE_DIR_NAME = "heatmap_tiles"
+        const val HEATMAP_CACHE_SCHEMA_VERSION = 2
 
         /**
          * Returns the localized disk cache directory for Personal Heatmap raster tiles:
