@@ -102,7 +102,7 @@ class HeatmapTileRasterizer(
             Pair(path, pts)
         }
 
-        drawDensityHeatmap(canvas, pathsWithPoints)
+        drawDensityHeatmap(canvas, pathsWithPoints, zoom)
         return bitmap
     }
 
@@ -127,6 +127,55 @@ class HeatmapTileRasterizer(
         }
     }
 
+    /**
+     * Calculates zoom-adaptive diffusion tiers according to:
+     * k = 1.0 (zoom >= 16)
+     * k = 2^((zoom - 16) * 0.6) (zoom < 16)
+     *
+     * Outer aura stroke width is clamped to at least [MIN_AURA_STROKE_WIDTH] (4.5px)
+     * and inner core stroke width is clamped to at least [MIN_CORE_STROKE_WIDTH] (2.0px).
+     * Intermediate tiers are scaled proportionally between the scaled aura and core.
+     */
+    fun getDensityTiersForZoom(zoom: Int): List<HeatmapDensityTier> {
+        if (densityTiers.isEmpty()) return emptyList()
+
+        val scaleFactor = if (zoom >= REFERENCE_ZOOM) {
+            1.0f
+        } else {
+            Math.pow(2.0, (zoom.coerceAtLeast(0) - REFERENCE_ZOOM) * ZOOM_SCALE_EXPONENT).toFloat()
+        }
+
+        if (densityTiers.size == 1) {
+            val single = densityTiers.first()
+            val scaledWidth = (single.strokeWidth * scaleFactor).coerceAtLeast(MIN_CORE_STROKE_WIDTH)
+            return listOf(single.copy(strokeWidth = scaledWidth))
+        }
+
+        val baseAuraWidth = densityTiers.first().strokeWidth
+        val baseCoreWidth = densityTiers.last().strokeWidth
+
+        val scaledAuraWidth = (baseAuraWidth * scaleFactor).coerceAtLeast(MIN_AURA_STROKE_WIDTH)
+        val scaledCoreWidth = (baseCoreWidth * scaleFactor).coerceAtLeast(MIN_CORE_STROKE_WIDTH)
+
+        val span = baseAuraWidth - baseCoreWidth
+
+        return densityTiers.mapIndexed { index, tier ->
+            val strokeWidth = when (index) {
+                0 -> scaledAuraWidth
+                densityTiers.size - 1 -> scaledCoreWidth
+                else -> {
+                    if (span > 0f) {
+                        val fraction = (tier.strokeWidth - baseCoreWidth) / span
+                        scaledCoreWidth + fraction * (scaledAuraWidth - scaledCoreWidth)
+                    } else {
+                        (tier.strokeWidth * scaleFactor).coerceIn(scaledCoreWidth, scaledAuraWidth)
+                    }
+                }
+            }
+            tier.copy(strokeWidth = strokeWidth)
+        }
+    }
+
     internal fun createAuraPaint(): Paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -145,16 +194,18 @@ class HeatmapTileRasterizer(
         xfermode = PorterDuffXfermode(PorterDuff.Mode.ADD)
     }
 
-    internal fun drawTwoPassGlow(canvas: Canvas, paths: List<Path>) {
+    internal fun drawTwoPassGlow(canvas: Canvas, paths: List<Path>, zoom: Int = REFERENCE_ZOOM) {
         val pathsWithEmptyPoints = paths.map { it to emptyList<Pair<Float, Float>>() }
-        drawDensityHeatmap(canvas, pathsWithEmptyPoints)
+        drawDensityHeatmap(canvas, pathsWithEmptyPoints, zoom)
     }
 
     internal fun drawDensityHeatmap(
         canvas: Canvas,
-        pathsWithPoints: List<Pair<Path, List<Pair<Float, Float>>>>
+        pathsWithPoints: List<Pair<Path, List<Pair<Float, Float>>>>,
+        zoom: Int = REFERENCE_ZOOM
     ) {
-        for (tier in densityTiers) {
+        val tiers = getDensityTiersForZoom(zoom)
+        for (tier in tiers) {
             val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.STROKE
                 strokeCap = Paint.Cap.ROUND
@@ -258,11 +309,16 @@ class HeatmapTileRasterizer(
             Pair(path, pts)
         }
 
-        drawDensityHeatmap(canvas, pathsWithPoints)
+        drawDensityHeatmap(canvas, pathsWithPoints, zoom)
         return bitmap
     }
 
     companion object {
+        const val REFERENCE_ZOOM = 16
+        const val ZOOM_SCALE_EXPONENT = 0.6
+        const val MIN_AURA_STROKE_WIDTH = 4.5f
+        const val MIN_CORE_STROKE_WIDTH = 2.0f
+
         const val AURA_WIDTH_DEFAULT = 56f
         const val CORE_WIDTH_DEFAULT = 12f
 

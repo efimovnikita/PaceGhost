@@ -31,3 +31,15 @@ _Avoid_: Blur filter, raster glow effect
 **Tile Bounding Box**:
 The geographic coordinate envelope (minimum and maximum latitude and longitude) encompassing a single Web Mercator map tile.
 _Avoid_: Tile envelope, map quadrangle
+
+**Adaptive Heat Trace**:
+A dynamic polyline rendering strategy where stroke width attenuates exponentially at lower zoom levels, keeping routes legible as crisp neon filaments rather than expanding into oversized blobs.
+_Avoid_: Fixed-width stroke, static line buffer
+
+**Heatmap Visibility Cutoff**:
+The minimum zoom threshold (level 10) below which the personal heatmap tile layer stops rendering, preventing resource-heavy database queries and preserving full map exploration without visual clutter.
+_Avoid_: Hard map clamp, unbounded layer rendering
+
+**Lazy Cache Flush**:
+A deferred invalidation process that wipes obsolete tile cache on demand upon screen entry rather than blocking application startup.
+_Avoid_: Startup wipe, synchronous cold-boot purge

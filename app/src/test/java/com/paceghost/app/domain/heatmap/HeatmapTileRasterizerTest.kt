@@ -229,4 +229,83 @@ class HeatmapTileRasterizerTest {
         assertTrue("Multi-route red ($rMulti) must be > single route ($r1)", rMulti > r1)
         assertEquals(255, bMulti)
     }
+
+    @Test
+    fun getDensityTiersForZoom_zoom16_returnsUnscaledDefaultTiers() {
+        val tiers = rasterizer.getDensityTiersForZoom(16)
+        assertEquals(5, tiers.size)
+        assertEquals(56f, tiers.first().strokeWidth, 0.001f)
+        assertEquals(36f, tiers[1].strokeWidth, 0.001f)
+        assertEquals(22f, tiers[2].strokeWidth, 0.001f)
+        assertEquals(12f, tiers[3].strokeWidth, 0.001f)
+        assertEquals(4f, tiers.last().strokeWidth, 0.001f)
+    }
+
+    @Test
+    fun getDensityTiersForZoom_zoom18_clampsScaleToOne() {
+        val tiers = rasterizer.getDensityTiersForZoom(18)
+        assertEquals(5, tiers.size)
+        // Zoom >= 16 must clamp scale factor k = 1.0, not blooming beyond 56f
+        assertEquals(56f, tiers.first().strokeWidth, 0.001f)
+        assertEquals(4f, tiers.last().strokeWidth, 0.001f)
+    }
+
+    @Test
+    fun getDensityTiersForZoom_zoom12_scalesExponentially() {
+        val tiers = rasterizer.getDensityTiersForZoom(12)
+        assertEquals(5, tiers.size)
+        // k = 2^((12 - 16) * 0.6) = 2^(-2.4) ~= 0.18946457
+        // Aura = 56 * 0.18946457 ~= 10.610f
+        // Core = max(4 * 0.18946457, 2.0f) = 2.0f
+        assertEquals(10.610f, tiers.first().strokeWidth, 0.05f)
+        assertEquals(2.0f, tiers.last().strokeWidth, 0.001f)
+        assertTrue(tiers[0].strokeWidth > tiers[1].strokeWidth)
+        assertTrue(tiers[1].strokeWidth > tiers[2].strokeWidth)
+        assertTrue(tiers[2].strokeWidth > tiers[3].strokeWidth)
+        assertTrue(tiers[3].strokeWidth > tiers[4].strokeWidth)
+    }
+
+    @Test
+    fun getDensityTiersForZoom_zoom10_clampsCoreFloorToTwoAndAuraAboveMin() {
+        val tiers = rasterizer.getDensityTiersForZoom(10)
+        assertEquals(5, tiers.size)
+        // k = 2^((10 - 16) * 0.6) = 2^(-3.6) ~= 0.082469275
+        // Aura = max(56 * 0.082469275, 4.5f) = max(4.618f, 4.5f) ~= 4.618f
+        // Core = max(4 * 0.082469275, 2.0f) = 2.0f (floor hit)
+        assertEquals(4.618f, tiers.first().strokeWidth, 0.05f)
+        assertTrue("Aura must be >= 4.5f", tiers.first().strokeWidth >= 4.5f)
+        assertEquals(2.0f, tiers.last().strokeWidth, 0.001f)
+        // Verify monotonic decreasing order
+        for (i in 0 until tiers.size - 1) {
+            assertTrue("Tier $i (${tiers[i].strokeWidth}) must be >= Tier ${i+1} (${tiers[i+1].strokeWidth})",
+                tiers[i].strokeWidth >= tiers[i + 1].strokeWidth)
+        }
+    }
+
+    @Test
+    fun getDensityTiersForZoom_zoom6_enforcesFloorsOnAllTiers() {
+        val tiers = rasterizer.getDensityTiersForZoom(6)
+        assertEquals(5, tiers.size)
+        // Deep zoom out: aura should hit floor 4.5f and core hits 2.0f
+        assertEquals(HeatmapTileRasterizer.MIN_AURA_STROKE_WIDTH, tiers.first().strokeWidth, 0.001f)
+        assertEquals(HeatmapTileRasterizer.MIN_CORE_STROKE_WIDTH, tiers.last().strokeWidth, 0.001f)
+    }
+
+    @Test
+    fun renderTile_zoom10_rendersSuccessfully() {
+        val bounds = WebMercatorProjection.tileToBounds(zoom = 10, tileX = 619, tileY = 320)
+        val midLon = (bounds.minLon + bounds.maxLon) / 2.0
+        val p1 = createPoint(walkId = 1L, id = 1L, lat = bounds.maxLat - 0.01, lon = midLon)
+        val p2 = createPoint(walkId = 1L, id = 2L, lat = bounds.minLat + 0.01, lon = midLon)
+
+        val bitmap = rasterizer.renderTile(
+            points = listOf(p1, p2),
+            zoom = 10,
+            tileX = 619,
+            tileY = 320
+        )
+        assertNotNull(bitmap)
+        assertEquals(256, bitmap!!.width)
+        assertEquals(256, bitmap.height)
+    }
 }
