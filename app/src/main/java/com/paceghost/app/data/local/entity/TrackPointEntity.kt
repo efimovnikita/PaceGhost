@@ -18,7 +18,8 @@ import com.paceghost.app.domain.model.TrackPoint
         )
     ],
     indices = [
-        Index(value = ["walkId"])
+        Index(value = ["walkId"]),
+        Index(value = ["latitude", "longitude"])
     ]
 )
 data class TrackPointEntity(

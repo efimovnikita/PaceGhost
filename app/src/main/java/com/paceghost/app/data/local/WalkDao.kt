@@ -27,6 +27,14 @@ interface WalkDao {
     @Query("SELECT * FROM track_points WHERE walkId = :walkId ORDER BY id ASC")
     suspend fun getPointsForWalk(walkId: Long): List<TrackPointEntity>
 
+    @Query("SELECT * FROM track_points WHERE latitude BETWEEN :minLat AND :maxLat AND longitude BETWEEN :minLon AND :maxLon ORDER BY walkId, id ASC")
+    suspend fun getPointsInBoundingBox(
+        minLat: Double,
+        maxLat: Double,
+        minLon: Double,
+        maxLon: Double
+    ): List<TrackPointEntity>
+
     @Query("DELETE FROM walks WHERE id = :id")
     suspend fun deleteWalk(id: Long)
 
