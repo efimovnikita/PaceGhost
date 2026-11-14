@@ -4,12 +4,14 @@ import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Point
+import android.view.MotionEvent
 import com.paceghost.app.domain.heatmap.PresenceCluster
 import com.paceghost.app.domain.heatmap.PresenceClusterer
 import com.paceghost.app.domain.model.WalkAnchor
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Overlay
+import kotlin.math.hypot
 
 /**
  * Draws Presence Clusters (glowing CyanGhost dots with a walk-count badge) strictly below
@@ -17,7 +19,8 @@ import org.osmdroid.views.overlay.Overlay
  * Clusters are recomputed via [recluster] (called after zoom/scroll settles), not per frame.
  */
 class WalkPresenceMarkersOverlay(
-    private val density: Float
+    private val density: Float,
+    private val onClusterTap: ((PresenceCluster) -> Unit)? = null
 ) : Overlay() {
 
     var anchors: List<WalkAnchor> = emptyList()
@@ -61,11 +64,70 @@ class WalkPresenceMarkersOverlay(
         }
     }
 
+    override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
+        if (!shouldShowMarkers(mapView.zoomLevelDouble) || clusters.isEmpty()) return false
+        val projection = mapView.projection
+        val hit = hitTestCluster(
+            clusters = clusters,
+            tapX = e.x,
+            tapY = e.y,
+            density = density,
+            projectToScreen = { cluster ->
+                projection.toPixels(GeoPoint(cluster.centerLat, cluster.centerLon), reusePoint)
+                reusePoint.x.toFloat() to reusePoint.y.toFloat()
+            }
+        ) ?: return false
+        if (onClusterTap != null) {
+            onClusterTap.invoke(hit)
+        } else {
+            val target = PresenceClusterer.drillDownTarget(
+                cluster = hit,
+                viewportWidthPx = mapView.width.takeIf { it > 0 } ?: 1080,
+                viewportHeightPx = mapView.height.takeIf { it > 0 } ?: 1920,
+                paddingPx = (48f * density).toInt()
+            )
+            mapView.controller.animateTo(
+                GeoPoint(target.centerLat, target.centerLon),
+                target.targetZoom,
+                800L
+            )
+        }
+        return true
+    }
+
     companion object {
         const val CUTOFF_ZOOM = PresenceClusterer.CUTOFF_ZOOM
         private const val CYAN_GHOST = 0xFF00E5FF.toInt()
+        private const val HIT_RADIUS_MULTIPLIER = 1.5f
+        private const val MIN_HIT_RADIUS_DP = 24f
 
         /** Strict handoff: markers only below zoom 10, heatmap only at zoom >= 10. */
         fun shouldShowMarkers(zoom: Double): Boolean = zoom < CUTOFF_ZOOM
+
+        /**
+         * Returns the closest [PresenceCluster] whose marker touch target contains ([tapX], [tapY]),
+         * or `null` if the tap misses all markers so normal map panning/gestures are not intercepted.
+         */
+        fun hitTestCluster(
+            clusters: List<PresenceCluster>,
+            tapX: Float,
+            tapY: Float,
+            density: Float,
+            projectToScreen: (PresenceCluster) -> Pair<Float, Float>
+        ): PresenceCluster? {
+            var bestCluster: PresenceCluster? = null
+            var bestDist = Float.MAX_VALUE
+            for (cluster in clusters) {
+                val (cx, cy) = projectToScreen(cluster)
+                val visualGlowRadius = PresenceClusterer.markerRadiusDp(cluster.count) * HIT_RADIUS_MULTIPLIER * density
+                val hitRadius = maxOf(visualGlowRadius, MIN_HIT_RADIUS_DP * density)
+                val dist = hypot(tapX - cx, tapY - cy)
+                if (dist <= hitRadius && dist < bestDist) {
+                    bestDist = dist
+                    bestCluster = cluster
+                }
+            }
+            return bestCluster
+        }
     }
 }
