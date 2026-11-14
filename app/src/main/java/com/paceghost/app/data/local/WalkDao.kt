@@ -38,6 +38,20 @@ interface WalkDao {
     @Query("DELETE FROM walks WHERE id = :id")
     suspend fun deleteWalk(id: Long)
 
+    @Query(
+        """
+        SELECT walkId,
+               (MIN(latitude) + MAX(latitude)) / 2.0 AS centerLat,
+               (MIN(longitude) + MAX(longitude)) / 2.0 AS centerLon,
+               MIN(latitude) AS minLat, MAX(latitude) AS maxLat,
+               MIN(longitude) AS minLon, MAX(longitude) AS maxLon
+        FROM track_points
+        GROUP BY walkId
+        HAVING COUNT(*) >= 2
+        """
+    )
+    suspend fun getWalkAnchors(): List<com.paceghost.app.domain.model.WalkAnchor>
+
     @Update
     suspend fun updateWalk(walk: WalkEntity)
 

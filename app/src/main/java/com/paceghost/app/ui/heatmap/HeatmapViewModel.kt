@@ -8,6 +8,8 @@ import com.paceghost.app.data.local.HeatmapPreferences
 import com.paceghost.app.data.repository.WalkRepository
 import com.paceghost.app.data.repository.WalkRepositoryImpl
 import com.paceghost.app.domain.heatmap.HeatmapTileProvider
+import com.paceghost.app.domain.model.WalkAnchor
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +25,8 @@ data class HeatmapUiState(
     val isLoading: Boolean = true,
     val recentWalkBounds: BoundingBox? = null,
     val initialCenter: GeoPoint? = null,
-    val hasWalks: Boolean = false
+    val hasWalks: Boolean = false,
+    val walkAnchors: List<WalkAnchor> = emptyList()
 )
 
 class HeatmapViewModel @JvmOverloads constructor(
@@ -43,6 +46,18 @@ class HeatmapViewModel @JvmOverloads constructor(
     init {
         purgeOutdatedCache()
         loadRecentBounds()
+        loadWalkAnchors()
+    }
+
+    fun loadWalkAnchors() {
+        viewModelScope.launch {
+            val anchors = try {
+                repository.getWalkAnchors()
+            } catch (_: Exception) {
+                emptyList()
+            }
+            _uiState.update { it.copy(walkAnchors = anchors) }
+        }
     }
 
     fun purgeOutdatedCache() {
@@ -57,7 +72,7 @@ class HeatmapViewModel @JvmOverloads constructor(
             try {
                 val walks = repository.getAllWalks().firstOrNull().orEmpty()
                 if (walks.isEmpty()) {
-                    _uiState.value = HeatmapUiState(
+                    _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         recentWalkBounds = null,
                         initialCenter = null,
@@ -71,7 +86,7 @@ class HeatmapViewModel @JvmOverloads constructor(
                 val points = repository.getTrackPointsForWalk(latestWalk.id)
 
                 if (points.isEmpty()) {
-                    _uiState.value = HeatmapUiState(
+                    _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         recentWalkBounds = null,
                         initialCenter = null,
@@ -88,14 +103,14 @@ class HeatmapViewModel @JvmOverloads constructor(
                 val bbox = BoundingBox(maxLat, maxLon, minLat, minLon)
                 val center = GeoPoint((minLat + maxLat) / 2.0, (minLon + maxLon) / 2.0)
 
-                _uiState.value = HeatmapUiState(
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     recentWalkBounds = bbox,
                     initialCenter = center,
                     hasWalks = true
                 )
             } catch (_: Exception) {
-                _uiState.value = HeatmapUiState(
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     recentWalkBounds = null,
                     initialCenter = null,

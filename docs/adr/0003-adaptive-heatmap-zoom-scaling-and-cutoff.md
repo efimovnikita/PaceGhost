@@ -14,3 +14,9 @@ To prevent personal heatmap walking routes from blooming into multi-kilometer op
 - Requires zoom-aware tier calculation in `HeatmapTileRasterizer`.
 - Restricts `HeatmapTileModuleProvider` minimum zoom to 10 to avoid unnecessary SQLite queries on large bounding boxes.
 - Requires lazy cache versioning to flush legacy static-width tiles on first entry to the heatmap screen.
+
+## Amended (2026-11-14)
+
+Below the zoom 10 cutoff the map is no longer empty: walk history is represented by **Walk Presence Markers** grouped into **Presence Clusters** (64dp screen-space grid, count badge always shown, logarithmic radius 8–14dp, glowing CyanGhost dot). The cutoff is a strict handoff — markers only below zoom 10, heatmap only at zoom 10 and above, no overlap band. Walk Anchors (route bounding-box centers) are computed on screen entry via a single `GROUP BY walkId` aggregate over `track_points`, with no schema migration; walks with fewer than two track points are skipped. Tapping a cluster performs a **Cluster Drill-Down** to the union of its walks' bounds, clamped to zoom [10, 16].
+
+Rejected alternatives: one marker per walk (stacking clutter), geocoder-based city grouping (network-dependent, slow), persisted anchor columns in `walks` (migration and drift risk), and an overlapping 10–11 transition band (ambiguous layering).

@@ -37,8 +37,24 @@ A dynamic polyline rendering strategy where stroke width attenuates exponentiall
 _Avoid_: Fixed-width stroke, static line buffer
 
 **Heatmap Visibility Cutoff**:
-The minimum zoom threshold (level 10) below which the personal heatmap tile layer stops rendering, preventing resource-heavy database queries and preserving full map exploration without visual clutter.
-_Avoid_: Hard map clamp, unbounded layer rendering
+The zoom threshold (level 10) separating the two representations of walk history: below it only Walk Presence Markers are shown, at or above it only the Personal Heatmap is shown, never both.
+_Avoid_: Hard map clamp, unbounded layer rendering, overlap band
+
+**Walk Anchor**:
+The single geographic point representing a walk at world scale, defined as the center of the walk's route bounding box; walks with fewer than two track points have no anchor and are not represented.
+_Avoid_: Start point, walk origin, route centroid
+
+**Walk Presence Marker**:
+A small glowing CyanGhost dot shown below the Heatmap Visibility Cutoff signalling that walks exist at a location, without revealing route detail.
+_Avoid_: Pin, location marker, walk icon
+
+**Presence Cluster**:
+A Walk Presence Marker aggregating all Walk Anchors that fall into the same screen-space grid cell at the current zoom, always labelled with the number of walks it contains (including 1) and growing logarithmically in size with that count.
+_Avoid_: City group, region bucket, marker stack
+
+**Cluster Drill-Down**:
+The animated zoom triggered by tapping a Presence Cluster that frames the combined bounds of its walks, never landing below the Heatmap Visibility Cutoff so the heatmap appears immediately.
+_Avoid_: Marker click, expand cluster
 
 **Lazy Cache Flush**:
 A deferred invalidation process that wipes obsolete tile cache on demand upon screen entry rather than blocking application startup.

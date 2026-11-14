@@ -26,6 +26,7 @@ interface WalkRepository {
     suspend fun exportWalkToGpx(walkId: Long): String?
     suspend fun importWalkFromGpx(gpxContent: String, titleOverride: String? = null): Long
     fun clearHeatmapCache() {}
+    suspend fun getWalkAnchors(): List<com.paceghost.app.domain.model.WalkAnchor> = emptyList()
 }
 
 class WalkRepositoryImpl(
@@ -76,6 +77,9 @@ class WalkRepositoryImpl(
     }
 
     override suspend fun updateWalk(walk: WalkEntity) = walkDao.updateWalk(walk)
+
+    override suspend fun getWalkAnchors(): List<com.paceghost.app.domain.model.WalkAnchor> =
+        walkDao.getWalkAnchors()
 
     override suspend fun setFavorite(id: Long, isFavorite: Boolean) =
         walkDao.setFavorite(id, isFavorite)

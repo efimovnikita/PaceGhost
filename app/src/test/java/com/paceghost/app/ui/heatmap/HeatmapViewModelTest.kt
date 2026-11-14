@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.paceghost.app.data.local.entity.WalkEntity
 import com.paceghost.app.data.repository.WalkRepository
 import com.paceghost.app.domain.model.TrackPoint
+import com.paceghost.app.domain.model.WalkAnchor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -123,6 +124,32 @@ class HeatmapViewModelTest {
         assertEquals(55.740, bbox.latSouth, 0.0001)
         assertEquals(37.630, bbox.lonEast, 0.0001)
         assertEquals(37.610, bbox.lonWest, 0.0001)
+    }
+
+    @Test
+    fun `walk anchors appear in uiState on screen entry`() = runTest {
+        val anchors = listOf(
+            WalkAnchor(1L, 55.5, 37.5, 55.0, 56.0, 37.0, 38.0),
+            WalkAnchor(2L, 48.85, 2.35, 48.8, 48.9, 2.3, 2.4)
+        )
+        val mockRepo = object : FakeWalkRepository() {
+            override suspend fun getWalkAnchors(): List<WalkAnchor> = anchors
+        }
+
+        val viewModel = HeatmapViewModel(application, mockRepo)
+        advanceUntilIdle()
+
+        assertEquals(anchors, viewModel.uiState.value.walkAnchors)
+    }
+
+    @Test
+    fun `no walks yields empty anchors without error`() = runTest {
+        val viewModel = HeatmapViewModel(application, FakeWalkRepository())
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.walkAnchors.isEmpty())
+        assertFalse(state.isLoading)
     }
 }
 

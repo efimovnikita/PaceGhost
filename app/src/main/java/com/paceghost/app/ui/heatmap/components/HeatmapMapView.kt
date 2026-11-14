@@ -26,6 +26,7 @@ import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.TilesOverlay
+import com.paceghost.app.domain.model.WalkAnchor
 
 /**
  * Controller allowing external Composable components (like floating action buttons)
@@ -63,6 +64,7 @@ fun rememberHeatmapMapController(): HeatmapMapController {
 fun HeatmapMapView(
     recentBounds: BoundingBox?,
     modifier: Modifier = Modifier,
+    walkAnchors: List<WalkAnchor> = emptyList(),
     mapController: HeatmapMapController? = null
 ) {
     val context = LocalContext.current
@@ -77,6 +79,8 @@ fun HeatmapMapView(
             walkDao = walkDao
         )
     }
+
+    val markersOverlay = remember { WalkPresenceMarkersOverlay(density) }
 
     val mapView = remember {
         MapView(context).apply {
@@ -104,9 +108,15 @@ fun HeatmapMapView(
                 loadingLineColor = Color.TRANSPARENT
             }
             overlays.add(heatmapOverlay)
+            overlays.add(markersOverlay)
 
             controller.setZoom(16.0)
         }
+    }
+
+    LaunchedEffect(walkAnchors) {
+        markersOverlay.anchors = walkAnchors
+        mapView.invalidate()
     }
 
     // Attach lifecycle observer to clean up background worker threads & MapView state

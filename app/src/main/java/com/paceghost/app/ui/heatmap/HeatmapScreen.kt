@@ -95,6 +95,7 @@ fun HeatmapScreen(
             HeatmapMapView(
                 recentBounds = uiState.recentWalkBounds,
                 modifier = Modifier.fillMaxSize(),
+                walkAnchors = uiState.walkAnchors,
                 mapController = mapController
             )
 
