@@ -111,4 +111,31 @@ class WalkPresenceMarkersOverlayTest {
         hitEvent.recycle()
         mapView.onDetach()
     }
+
+    @Test
+    fun `twoPassGlowSpec scales aura and text legibly across all badge sizes`() {
+        val density = 2f
+
+        val single = WalkPresenceMarkersOverlay.computeMarkerVisualSpec(count = 1, density = density)
+        assertEquals("1", single.badgeText)
+        assertEquals(16f, single.coreRadiusPx, 0.01f) // 8dp * 2
+        assertEquals(32f, single.outerAuraRadiusPx, 0.01f) // 2.0x core
+        assertEquals(22.4f, single.innerAuraRadiusPx, 0.01f) // 1.4x core
+        assertEquals(0xFF00E5FF.toInt(), single.coreColor)
+        assertEquals(0xFF000000.toInt(), single.textColor)
+        assertTrue("Single digit text size must be readable (>= 14px at 2x density)", single.textSizePx >= 14f)
+
+        val twoDigit = WalkPresenceMarkersOverlay.computeMarkerVisualSpec(count = 42, density = density)
+        assertEquals("42", twoDigit.badgeText)
+        assertTrue(twoDigit.coreRadiusPx > single.coreRadiusPx)
+        // Text must fit comfortably inside the core circle diameter
+        assertTrue(twoDigit.textSizePx <= twoDigit.coreRadiusPx * 1.1f)
+
+        val capped = WalkPresenceMarkersOverlay.computeMarkerVisualSpec(count = 150, density = density)
+        assertEquals("99+", capped.badgeText)
+        assertEquals(28f, capped.coreRadiusPx, 0.01f) // 14dp * 2
+        // 3-char "99+" scales down slightly relative to radius so it stays inside the 28px-radius core
+        assertTrue(capped.textSizePx < capped.coreRadiusPx * 0.95f)
+        assertTrue(capped.textSizePx >= 18f)
+    }
 }

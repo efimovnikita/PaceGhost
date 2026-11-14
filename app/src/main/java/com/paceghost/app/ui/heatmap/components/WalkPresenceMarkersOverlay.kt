@@ -1,6 +1,5 @@
 package com.paceghost.app.ui.heatmap.components
 
-import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Point
@@ -12,6 +11,21 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Overlay
 import kotlin.math.hypot
+
+/**
+ * Computed Two-Pass Glow visual specification for a single [PresenceCluster] marker.
+ */
+data class MarkerVisualSpec(
+    val badgeText: String,
+    val coreRadiusPx: Float,
+    val innerAuraRadiusPx: Float,
+    val outerAuraRadiusPx: Float,
+    val coreColor: Int,
+    val innerAuraColor: Int,
+    val outerAuraColor: Int,
+    val textColor: Int,
+    val textSizePx: Float
+)
 
 /**
  * Draws Presence Clusters (glowing CyanGhost dots with a walk-count badge) strictly below
@@ -27,18 +41,20 @@ class WalkPresenceMarkersOverlay(
 
     private var clusters: List<PresenceCluster> = emptyList()
 
-    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = CYAN_GHOST
-        alpha = 110
+    private val outerAuraPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = OUTER_AURA_COLOR
         style = Paint.Style.FILL
-        maskFilter = BlurMaskFilter(6f * density, BlurMaskFilter.Blur.NORMAL)
+    }
+    private val innerAuraPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = INNER_AURA_COLOR
+        style = Paint.Style.FILL
     }
     private val corePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = CYAN_GHOST
         style = Paint.Style.FILL
     }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF000000.toInt()
+        color = TEXT_COLOR
         textAlign = Paint.Align.CENTER
         isFakeBoldText = true
     }
@@ -55,12 +71,15 @@ class WalkPresenceMarkersOverlay(
             projection.toPixels(GeoPoint(cluster.centerLat, cluster.centerLon), reusePoint)
             val x = reusePoint.x.toFloat()
             val y = reusePoint.y.toFloat()
-            val radius = PresenceClusterer.markerRadiusDp(cluster.count) * density
-            canvas.drawCircle(x, y, radius * 1.5f, glowPaint)
-            canvas.drawCircle(x, y, radius, corePaint)
-            textPaint.textSize = radius * 1.0f
+            val spec = computeMarkerVisualSpec(cluster.count, density)
+            // Pass 1: Two-tier semi-transparent CyanGhost aura
+            canvas.drawCircle(x, y, spec.outerAuraRadiusPx, outerAuraPaint)
+            canvas.drawCircle(x, y, spec.innerAuraRadiusPx, innerAuraPaint)
+            // Pass 2: Saturated CyanGhost core + centered bold count badge
+            canvas.drawCircle(x, y, spec.coreRadiusPx, corePaint)
+            textPaint.textSize = spec.textSizePx
             val baseline = y - (textPaint.descent() + textPaint.ascent()) / 2f
-            canvas.drawText(PresenceClusterer.badgeText(cluster.count), x, baseline, textPaint)
+            canvas.drawText(spec.badgeText, x, baseline, textPaint)
         }
     }
 
@@ -97,12 +116,42 @@ class WalkPresenceMarkersOverlay(
 
     companion object {
         const val CUTOFF_ZOOM = PresenceClusterer.CUTOFF_ZOOM
-        private const val CYAN_GHOST = 0xFF00E5FF.toInt()
+        const val CYAN_GHOST = 0xFF00E5FF.toInt()
+        const val INNER_AURA_COLOR = 0x5500E5FF.toInt()
+        const val OUTER_AURA_COLOR = 0x2600E5FF.toInt()
+        const val TEXT_COLOR = 0xFF000000.toInt()
+        private const val OUTER_AURA_MULTIPLIER = 2.0f
+        private const val INNER_AURA_MULTIPLIER = 1.4f
         private const val HIT_RADIUS_MULTIPLIER = 1.5f
         private const val MIN_HIT_RADIUS_DP = 24f
 
         /** Strict handoff: markers only below zoom 10, heatmap only at zoom >= 10. */
         fun shouldShowMarkers(zoom: Double): Boolean = zoom < CUTOFF_ZOOM
+
+        /**
+         * Computes Two-Pass Glow radii, colors, and adaptive text sizing so count badges
+         * ("1".."9", "10".."99", "99+") stay crisp and centered inside the core across all sizes.
+         */
+        fun computeMarkerVisualSpec(count: Int, density: Float): MarkerVisualSpec {
+            val badge = PresenceClusterer.badgeText(count)
+            val coreRadiusPx = PresenceClusterer.markerRadiusDp(count) * density
+            val textScale = when {
+                badge.length >= 3 -> 0.78f
+                badge.length == 2 -> 0.90f
+                else -> 1.05f
+            }
+            return MarkerVisualSpec(
+                badgeText = badge,
+                coreRadiusPx = coreRadiusPx,
+                innerAuraRadiusPx = coreRadiusPx * INNER_AURA_MULTIPLIER,
+                outerAuraRadiusPx = coreRadiusPx * OUTER_AURA_MULTIPLIER,
+                coreColor = CYAN_GHOST,
+                innerAuraColor = INNER_AURA_COLOR,
+                outerAuraColor = OUTER_AURA_COLOR,
+                textColor = TEXT_COLOR,
+                textSizePx = coreRadiusPx * textScale
+            )
+        }
 
         /**
          * Returns the closest [PresenceCluster] whose marker touch target contains ([tapX], [tapY]),
