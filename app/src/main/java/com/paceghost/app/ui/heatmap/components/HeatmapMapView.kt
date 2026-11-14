@@ -116,7 +116,30 @@ fun HeatmapMapView(
 
     LaunchedEffect(walkAnchors) {
         markersOverlay.anchors = walkAnchors
+        markersOverlay.recluster(mapView.zoomLevelDouble)
         mapView.invalidate()
+    }
+
+    // Recompute clusters after zoom/scroll settles (debounced), not on every animation frame.
+    DisposableEffect(mapView) {
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val task = Runnable {
+            markersOverlay.recluster(mapView.zoomLevelDouble)
+            mapView.invalidate()
+        }
+        val listener = object : org.osmdroid.events.MapListener {
+            override fun onScroll(event: org.osmdroid.events.ScrollEvent?): Boolean {
+                handler.removeCallbacks(task); handler.postDelayed(task, 250L); return false
+            }
+            override fun onZoom(event: org.osmdroid.events.ZoomEvent?): Boolean {
+                handler.removeCallbacks(task); handler.postDelayed(task, 250L); return false
+            }
+        }
+        mapView.addMapListener(listener)
+        onDispose {
+            handler.removeCallbacks(task)
+            mapView.removeMapListener(listener)
+        }
     }
 
     // Attach lifecycle observer to clean up background worker threads & MapView state

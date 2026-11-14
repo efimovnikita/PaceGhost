@@ -4,20 +4,25 @@ import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Point
+import com.paceghost.app.domain.heatmap.PresenceCluster
+import com.paceghost.app.domain.heatmap.PresenceClusterer
 import com.paceghost.app.domain.model.WalkAnchor
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Overlay
 
 /**
- * Draws Walk Presence Markers (glowing CyanGhost dots at each Walk Anchor) strictly below
- * the heatmap visibility cutoff. At zoom >= [CUTOFF_ZOOM] nothing is drawn (heatmap only).
+ * Draws Presence Clusters (glowing CyanGhost dots with a walk-count badge) strictly below
+ * the heatmap visibility cutoff. At zoom >= cutoff nothing is drawn (heatmap only).
+ * Clusters are recomputed via [recluster] (called after zoom/scroll settles), not per frame.
  */
 class WalkPresenceMarkersOverlay(
     private val density: Float
 ) : Overlay() {
 
     var anchors: List<WalkAnchor> = emptyList()
+
+    private var clusters: List<PresenceCluster> = emptyList()
 
     private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = CYAN_GHOST
@@ -29,24 +34,35 @@ class WalkPresenceMarkersOverlay(
         color = CYAN_GHOST
         style = Paint.Style.FILL
     }
+    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFF000000.toInt()
+        textAlign = Paint.Align.CENTER
+        isFakeBoldText = true
+    }
     private val reusePoint = Point()
 
+    fun recluster(zoom: Double) {
+        clusters = PresenceClusterer.cluster(anchors, zoom, PresenceClusterer.CELL_SIZE_DP * density)
+    }
+
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
-        if (shadow || !shouldShowMarkers(mapView.zoomLevelDouble) || anchors.isEmpty()) return
+        if (shadow || !shouldShowMarkers(mapView.zoomLevelDouble) || clusters.isEmpty()) return
         val projection = mapView.projection
-        val radius = DOT_RADIUS_DP * density
-        for (anchor in anchors) {
-            projection.toPixels(GeoPoint(anchor.centerLat, anchor.centerLon), reusePoint)
+        for (cluster in clusters) {
+            projection.toPixels(GeoPoint(cluster.centerLat, cluster.centerLon), reusePoint)
             val x = reusePoint.x.toFloat()
             val y = reusePoint.y.toFloat()
-            canvas.drawCircle(x, y, radius * 1.8f, glowPaint)
+            val radius = PresenceClusterer.markerRadiusDp(cluster.count) * density
+            canvas.drawCircle(x, y, radius * 1.5f, glowPaint)
             canvas.drawCircle(x, y, radius, corePaint)
+            textPaint.textSize = radius * 1.0f
+            val baseline = y - (textPaint.descent() + textPaint.ascent()) / 2f
+            canvas.drawText(PresenceClusterer.badgeText(cluster.count), x, baseline, textPaint)
         }
     }
 
     companion object {
-        const val CUTOFF_ZOOM = 10.0
-        private const val DOT_RADIUS_DP = 5f
+        const val CUTOFF_ZOOM = PresenceClusterer.CUTOFF_ZOOM
         private const val CYAN_GHOST = 0xFF00E5FF.toInt()
 
         /** Strict handoff: markers only below zoom 10, heatmap only at zoom >= 10. */
