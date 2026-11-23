@@ -1,0 +1,4 @@
+/implement Тикет: ".tickets/heatmap-lifetime-stats/01-lifetime-stats-tracer-bullet.md". Контекст: "docs/specs/heatmap-lifetime-stats.md"
+/implement Тикет: ".tickets/heatmap-lifetime-stats/02-stats-sheet-gestures-and-polish.md". Контекст: "docs/specs/heatmap-lifetime-stats.md"
+/implement Тикет: ".tickets/heatmap-lifetime-stats/03-emulator-visual-verification.md". Контекст: "docs/specs/heatmap-lifetime-stats.md"
+/implement Тикет: ".tickets/heatmap-lifetime-stats/04-release-version-bump-and-publish.md". Контекст: "docs/specs/heatmap-lifetime-stats.md"

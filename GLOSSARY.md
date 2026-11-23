@@ -59,3 +59,15 @@ _Avoid_: Marker click, expand cluster
 **Lazy Cache Flush**:
 A deferred invalidation process that wipes obsolete tile cache on demand upon screen entry rather than blocking application startup.
 _Avoid_: Startup wipe, synchronous cold-boot purge
+
+**Qualifying Walk**:
+A recorded walk meeting the minimum validity threshold (at least 60 seconds in duration and at least 50 meters in distance), used for pace modeling and lifetime statistics to exclude accidental starts and micro-recordings.
+_Avoid_: Valid walk, real walk, filtered walk
+
+**Lifetime Stats**:
+The cumulative all-time walking summary aggregated across all Qualifying Walks, reporting total distance, walk count, total duration, total steps, weighted average speed, and longest walk.
+_Avoid_: Global telemetry, user totals, all-time summary
+
+**Stats Peek Sheet**:
+A non-modal bottom sheet on the Personal Heatmap screen that rests collapsed as a centered peek handle and expands via upward swipe or tap to display Lifetime Stats without dimming the map above.
+_Avoid_: Stats drawer, metrics popup, analytics modal
