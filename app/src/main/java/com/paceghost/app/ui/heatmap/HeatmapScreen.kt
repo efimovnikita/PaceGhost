@@ -1,6 +1,9 @@
 package com.paceghost.app.ui.heatmap
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +31,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.paceghost.app.ui.heatmap.components.HeatmapMapView
+import com.paceghost.app.ui.heatmap.components.StatsPeekSheet
 import com.paceghost.app.ui.heatmap.components.rememberHeatmapMapController
 import com.paceghost.app.ui.theme.CyanGhost
 import com.paceghost.app.ui.theme.DarkBackground
@@ -49,8 +56,14 @@ fun HeatmapScreen(
     modifier: Modifier = Modifier,
     viewModel: HeatmapViewModel = viewModel()
 ) {
+    var isStatsExpanded by rememberSaveable { mutableStateOf(false) }
+
     BackHandler {
-        onNavigateBack()
+        if (isStatsExpanded) {
+            isStatsExpanded = false
+        } else {
+            onNavigateBack()
+        }
     }
 
     val uiState by viewModel.uiState.collectAsState()
@@ -107,56 +120,71 @@ fun HeatmapScreen(
             }
 
             // Floating control buttons (Zoom In, Zoom Out, Recenter)
-            Column(
+            AnimatedVisibility(
+                visible = !isStatsExpanded,
+                enter = fadeIn(),
+                exit = fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.End
+                    .padding(24.dp)
             ) {
-                FloatingActionButton(
-                    onClick = { mapController.zoomIn() },
-                    shape = CircleShape,
-                    containerColor = DarkBackground,
-                    contentColor = CyanGhost,
-                    modifier = Modifier.size(44.dp)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.End
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = "Zoom In",
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                    FloatingActionButton(
+                        onClick = { mapController.zoomIn() },
+                        shape = CircleShape,
+                        containerColor = DarkBackground,
+                        contentColor = CyanGhost,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = "Zoom In",
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
 
-                FloatingActionButton(
-                    onClick = { mapController.zoomOut() },
-                    shape = CircleShape,
-                    containerColor = DarkBackground,
-                    contentColor = CyanGhost,
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Remove,
-                        contentDescription = "Zoom Out",
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                    FloatingActionButton(
+                        onClick = { mapController.zoomOut() },
+                        shape = CircleShape,
+                        containerColor = DarkBackground,
+                        contentColor = CyanGhost,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Remove,
+                            contentDescription = "Zoom Out",
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
 
-                FloatingActionButton(
-                    onClick = { mapController.recenter() },
-                    shape = CircleShape,
-                    containerColor = CyanGhost,
-                    contentColor = Color.Black,
-                    modifier = Modifier.size(56.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.CenterFocusStrong,
-                        contentDescription = "Recenter Map",
-                        modifier = Modifier.size(24.dp)
-                    )
+                    FloatingActionButton(
+                        onClick = { mapController.recenter() },
+                        shape = CircleShape,
+                        containerColor = CyanGhost,
+                        contentColor = Color.Black,
+                        modifier = Modifier.size(56.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CenterFocusStrong,
+                            contentDescription = "Recenter Map",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
+
+            StatsPeekSheet(
+                stats = uiState.lifetimeStats,
+                isExpanded = isStatsExpanded,
+                onExpandedChange = { isStatsExpanded = it },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+            )
         }
     }
 }

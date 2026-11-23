@@ -7,6 +7,7 @@ import com.paceghost.app.data.local.WalkDao
 import com.paceghost.app.data.local.entity.TrackPointEntity
 import com.paceghost.app.data.local.entity.WalkEntity
 import com.paceghost.app.domain.heatmap.HeatmapTileProvider
+import com.paceghost.app.domain.model.LifetimeStats
 import com.paceghost.app.domain.model.TrackPoint
 import com.paceghost.app.util.AppLogger
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +28,7 @@ interface WalkRepository {
     suspend fun importWalkFromGpx(gpxContent: String, titleOverride: String? = null): Long
     fun clearHeatmapCache() {}
     suspend fun getWalkAnchors(): List<com.paceghost.app.domain.model.WalkAnchor> = emptyList()
+    suspend fun getLifetimeStats(): LifetimeStats = LifetimeStats()
 }
 
 class WalkRepositoryImpl(
@@ -80,6 +82,8 @@ class WalkRepositoryImpl(
 
     override suspend fun getWalkAnchors(): List<com.paceghost.app.domain.model.WalkAnchor> =
         walkDao.getWalkAnchors()
+
+    override suspend fun getLifetimeStats(): LifetimeStats = walkDao.getLifetimeStats()
 
     override suspend fun setFavorite(id: Long, isFavorite: Boolean) =
         walkDao.setFavorite(id, isFavorite)

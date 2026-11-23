@@ -8,6 +8,7 @@ import com.paceghost.app.data.local.HeatmapPreferences
 import com.paceghost.app.data.repository.WalkRepository
 import com.paceghost.app.data.repository.WalkRepositoryImpl
 import com.paceghost.app.domain.heatmap.HeatmapTileProvider
+import com.paceghost.app.domain.model.LifetimeStats
 import com.paceghost.app.domain.model.WalkAnchor
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CoroutineDispatcher
@@ -26,7 +27,8 @@ data class HeatmapUiState(
     val recentWalkBounds: BoundingBox? = null,
     val initialCenter: GeoPoint? = null,
     val hasWalks: Boolean = false,
-    val walkAnchors: List<WalkAnchor> = emptyList()
+    val walkAnchors: List<WalkAnchor> = emptyList(),
+    val lifetimeStats: LifetimeStats = LifetimeStats()
 )
 
 class HeatmapViewModel @JvmOverloads constructor(
@@ -47,6 +49,18 @@ class HeatmapViewModel @JvmOverloads constructor(
         purgeOutdatedCache()
         loadRecentBounds()
         loadWalkAnchors()
+        loadLifetimeStats()
+    }
+
+    fun loadLifetimeStats() {
+        viewModelScope.launch {
+            val stats = try {
+                repository.getLifetimeStats()
+            } catch (_: Exception) {
+                LifetimeStats()
+            }
+            _uiState.update { it.copy(lifetimeStats = stats) }
+        }
     }
 
     fun loadWalkAnchors() {

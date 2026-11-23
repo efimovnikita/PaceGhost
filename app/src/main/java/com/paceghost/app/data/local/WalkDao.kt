@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.paceghost.app.data.local.entity.TrackPointEntity
 import com.paceghost.app.data.local.entity.WalkEntity
+import com.paceghost.app.domain.model.LifetimeStats
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -60,6 +61,23 @@ interface WalkDao {
 
     @Query("SELECT COUNT(*) FROM walks")
     suspend fun getWalkCount(): Int
+
+    @Query(
+        """
+        SELECT COUNT(*) AS walkCount,
+               COALESCE(SUM(distanceMeters), 0.0) AS totalDistanceMeters,
+               COALESCE(SUM(durationSeconds), 0) AS totalDurationSeconds,
+               COALESCE(SUM(stepCount), 0) AS totalSteps,
+               COALESCE(MAX(distanceMeters), 0.0) AS longestWalkMeters
+        FROM walks
+        WHERE durationSeconds >= :minDurationSeconds
+          AND distanceMeters >= :minDistanceMeters
+        """
+    )
+    suspend fun getLifetimeStats(
+        minDurationSeconds: Long = LifetimeStats.MIN_DURATION_SECONDS,
+        minDistanceMeters: Double = LifetimeStats.MIN_DISTANCE_METERS
+    ): LifetimeStats
 
     @Query("DELETE FROM walks")
     suspend fun clearAllWalks()
