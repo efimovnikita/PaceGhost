@@ -1,0 +1,3 @@
+/implement Тикет: ".tickets/hide-osmdroid-zoom-controls/01-disable-osmdroid-zoom-controls.md". Контекст: "docs/specs/hide-osmdroid-zoom-controls.md"
+/implement Тикет: ".tickets/hide-osmdroid-zoom-controls/02-emulator-visual-verification.md". Контекст: "docs/specs/hide-osmdroid-zoom-controls.md"
+/implement Тикет: ".tickets/hide-osmdroid-zoom-controls/03-release-version-bump-and-publish.md". Контекст: "docs/specs/hide-osmdroid-zoom-controls.md"
