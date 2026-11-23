@@ -2,6 +2,7 @@ package com.paceghost.app.ui.heatmap
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -122,8 +123,8 @@ fun HeatmapScreen(
             // Floating control buttons (Zoom In, Zoom Out, Recenter)
             AnimatedVisibility(
                 visible = !isStatsExpanded,
-                enter = fadeIn(),
-                exit = fadeOut(),
+                enter = fadeIn(animationSpec = tween(220)),
+                exit = fadeOut(animationSpec = tween(180)),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()

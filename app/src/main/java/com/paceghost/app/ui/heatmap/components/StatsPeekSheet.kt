@@ -1,6 +1,7 @@
 package com.paceghost.app.ui.heatmap.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,7 +11,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,14 +35,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -69,11 +70,19 @@ fun StatsPeekSheet(
 
     AnimatedContent(
         targetState = isExpanded,
+        contentAlignment = Alignment.BottomCenter,
         transitionSpec = {
-            (fadeIn(animationSpec = tween(220)) + slideInVertically(animationSpec = tween(220)) { it / 3 })
-                .togetherWith(
-                    fadeOut(animationSpec = tween(180)) + slideOutVertically(animationSpec = tween(180)) { it / 3 }
-                )
+            if (targetState) {
+                (fadeIn(animationSpec = tween(220)) + slideInVertically(animationSpec = tween(220)) { it / 3 })
+                    .togetherWith(
+                        fadeOut(animationSpec = tween(150)) + slideOutVertically(animationSpec = tween(150)) { it / 2 }
+                    )
+            } else {
+                (fadeIn(animationSpec = tween(200)) + slideInVertically(animationSpec = tween(200)) { it / 2 })
+                    .togetherWith(
+                        fadeOut(animationSpec = tween(180)) + slideOutVertically(animationSpec = tween(180)) { it / 3 }
+                    )
+            }.using(SizeTransform(clip = false))
         },
         modifier = modifier,
         label = "StatsPeekSheetTransition"
@@ -99,12 +108,12 @@ private fun CollapsedStatsHandle(
     onExpand: () -> Unit
 ) {
     Surface(
+        onClick = onExpand,
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         color = DarkSurfaceTranslucent,
         border = BorderStroke(1.dp, DarkSurfaceVariant),
         modifier = Modifier
-            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-            .clickable(onClickLabel = "Expand Stats", onClick = onExpand)
+            .semantics { contentDescription = "Expand Stats" }
             .verticalSwipeThreshold(
                 thresholdPx = dragThresholdPx,
                 swipeUp = true,
@@ -310,29 +319,73 @@ private fun StatCell(
     }
 }
 
+@Composable
 private fun Modifier.verticalSwipeThreshold(
     thresholdPx: Float,
     swipeUp: Boolean,
     onTriggered: () -> Unit
-): Modifier = composed {
-    var cumulativeDrag by remember { mutableFloatStateOf(0f) }
-    pointerInput(thresholdPx, swipeUp) {
-        detectVerticalDragGestures(
-            onDragStart = { cumulativeDrag = 0f },
-            onDragEnd = { cumulativeDrag = 0f },
-            onDragCancel = { cumulativeDrag = 0f },
-            onVerticalDrag = { _, dragAmount ->
-                cumulativeDrag += dragAmount
-                val triggered = if (swipeUp) {
-                    cumulativeDrag <= -thresholdPx
-                } else {
-                    cumulativeDrag >= thresholdPx
+): Modifier {
+    val currentOnTriggered by rememberUpdatedState(onTriggered)
+    val density = LocalDensity.current
+    val flingVelocityPx = with(density) { 400.dp.toPx() }
+    val minFlingDistancePx = with(density) { 12.dp.toPx() }
+
+    return this.pointerInput(thresholdPx, swipeUp, flingVelocityPx, minFlingDistancePx) {
+        val touchSlop = viewConfiguration.touchSlop
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val velocityTracker = VelocityTracker()
+            velocityTracker.addPosition(down.uptimeMillis, down.position)
+            var totalDragY = 0f
+            var totalDragX = 0f
+            var pastTouchSlop = false
+            var triggered = false
+
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                if (!change.pressed) {
+                    if (pastTouchSlop && !triggered) {
+                        val velocityY = velocityTracker.calculateVelocity().y
+                        val flingTriggered = if (swipeUp) {
+                            totalDragY <= -minFlingDistancePx && velocityY <= -flingVelocityPx
+                        } else {
+                            totalDragY >= minFlingDistancePx && velocityY >= flingVelocityPx
+                        }
+                        if (flingTriggered) {
+                            currentOnTriggered()
+                        }
+                    }
+                    break
                 }
-                if (triggered) {
-                    cumulativeDrag = 0f
-                    onTriggered()
+
+                val deltaY = change.position.y - change.previousPosition.y
+                val deltaX = change.position.x - change.previousPosition.x
+                totalDragY += deltaY
+                totalDragX += deltaX
+                velocityTracker.addPosition(change.uptimeMillis, change.position)
+
+                if (!pastTouchSlop && kotlin.math.abs(totalDragY) > touchSlop &&
+                    kotlin.math.abs(totalDragY) > kotlin.math.abs(totalDragX)
+                ) {
+                    pastTouchSlop = true
+                }
+
+                if (pastTouchSlop) {
+                    change.consume()
+                    if (!triggered) {
+                        val distanceTriggered = if (swipeUp) {
+                            totalDragY <= -thresholdPx
+                        } else {
+                            totalDragY >= thresholdPx
+                        }
+                        if (distanceTriggered) {
+                            triggered = true
+                            currentOnTriggered()
+                        }
+                    }
                 }
             }
-        )
+        }
     }
 }
