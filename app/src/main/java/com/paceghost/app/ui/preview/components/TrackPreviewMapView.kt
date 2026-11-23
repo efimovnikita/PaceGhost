@@ -26,9 +26,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.paceghost.app.domain.model.TrackPoint
+import com.paceghost.app.ui.common.applyPaceGhostDefaults
 import com.paceghost.app.ui.theme.DarkSurface
 import com.paceghost.app.ui.theme.TextSecondary
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -62,11 +62,7 @@ fun TrackPreviewMapView(
 
     val mapView = remember {
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
-            setMultiTouchControls(true)
-            setTilesScaledToDpi(true)
-            isHorizontalMapRepetitionEnabled = false
-            isVerticalMapRepetitionEnabled = false
+            applyPaceGhostDefaults()
             controller.setZoom(16.0)
         }
     }

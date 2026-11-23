@@ -20,8 +20,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.paceghost.app.data.local.AppDatabase
 import com.paceghost.app.domain.heatmap.HeatmapTileProvider
+import com.paceghost.app.ui.common.applyPaceGhostDefaults
 import com.paceghost.app.ui.theme.DarkBackground
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -84,11 +84,7 @@ fun HeatmapMapView(
 
     val mapView = remember {
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
-            setMultiTouchControls(true)
-            setTilesScaledToDpi(true)
-            isHorizontalMapRepetitionEnabled = false
-            isVerticalMapRepetitionEnabled = false
+            applyPaceGhostDefaults()
             setBackgroundColor(Color.BLACK)
 
             // Runtime Inverted Dark Theme Filter for OpenStreetMap Base Tiles

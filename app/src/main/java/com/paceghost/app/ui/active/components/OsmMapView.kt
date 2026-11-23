@@ -18,7 +18,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.paceghost.app.domain.model.GpsQuality
 import com.paceghost.app.domain.model.TrackPoint
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import com.paceghost.app.ui.common.applyPaceGhostDefaults
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.FolderOverlay
@@ -43,11 +43,7 @@ fun OsmMapView(
 
     val mapView = remember {
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
-            setMultiTouchControls(true)
-            setTilesScaledToDpi(true)
-            isHorizontalMapRepetitionEnabled = false
-            isVerticalMapRepetitionEnabled = false
+            applyPaceGhostDefaults()
             controller.setZoom(17.5)
         }
     }
