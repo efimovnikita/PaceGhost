@@ -39,12 +39,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.paceghost.app.domain.engine.PaceCalculator
+import com.paceghost.app.domain.model.GpsSignalSummary
+import com.paceghost.app.domain.model.GpsSignalTier
 import com.paceghost.app.ui.theme.DarkSurface
 import com.paceghost.app.ui.theme.DarkSurfaceVariant
 import com.paceghost.app.ui.theme.ErrorRed
 import com.paceghost.app.ui.theme.NeonGreenRunner
 import com.paceghost.app.ui.theme.TextPrimary
 import com.paceghost.app.ui.theme.TextSecondary
+import com.paceghost.app.ui.theme.WarningAmber
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -55,6 +58,7 @@ fun WalkSummaryDialog(
     durationSeconds: Long,
     stepCount: Int,
     averagePaceSecondsPerKm: Double,
+    gpsSignalSummary: GpsSignalSummary = GpsSignalSummary(),
     isSuggestingTitle: Boolean = false,
     suggestedTitle: String? = null,
     onSuggestTitle: () -> Unit = {},
@@ -168,6 +172,16 @@ fun WalkSummaryDialog(
                             label = "Avg Pace",
                             value = PaceCalculator.formatPace(averagePaceSecondsPerKm),
                             valueColor = NeonGreenRunner
+                        )
+                        SummaryRow(
+                            label = "GPS Signal",
+                            value = gpsSignalSummary.formatDisplay(),
+                            valueColor = when (gpsSignalSummary.tier) {
+                                GpsSignalTier.GOOD -> NeonGreenRunner
+                                GpsSignalTier.FAIR -> WarningAmber
+                                GpsSignalTier.POOR -> ErrorRed
+                                GpsSignalTier.UNAVAILABLE -> TextSecondary
+                            }
                         )
                     }
                 }

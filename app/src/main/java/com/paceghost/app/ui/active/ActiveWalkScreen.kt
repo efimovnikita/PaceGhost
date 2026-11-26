@@ -274,6 +274,7 @@ fun ActiveWalkScreen(
                 durationSeconds = walkState.elapsedSeconds,
                 stepCount = walkState.stepCount,
                 averagePaceSecondsPerKm = walkState.currentPaceSecondsPerKm,
+                gpsSignalSummary = walkState.gpsSignalSummary,
                 isSuggestingTitle = isSuggestingTitle,
                 suggestedTitle = suggestedTitle,
                 onSuggestTitle = { viewModel.suggestRouteTitle() },

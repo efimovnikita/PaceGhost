@@ -28,6 +28,7 @@ import com.paceghost.app.domain.engine.FreeWalkCoachEngine
 import com.paceghost.app.domain.engine.FreeWalkFeedbackEvent
 import com.paceghost.app.domain.engine.GeoMath
 import com.paceghost.app.domain.engine.GhostEngine
+import com.paceghost.app.domain.engine.GpsSignalScoreTracker
 import com.paceghost.app.domain.engine.KalmanLocationFilter
 import com.paceghost.app.domain.engine.PaceCalculator
 import com.paceghost.app.domain.engine.PedestrianDeadReckoningEngine
@@ -102,6 +103,7 @@ class WalkTrackingService : Service() {
     private val autoPauseDetector = AutoPauseDetector()
     private val ghostEngine = GhostEngine()
     private val freeWalkCoachEngine = FreeWalkCoachEngine()
+    private val gpsSignalScoreTracker = GpsSignalScoreTracker()
     private var walkSimulator = WalkSimulator()
 
     private val _walkState = MutableStateFlow(WalkState())
@@ -421,9 +423,22 @@ class WalkTrackingService : Service() {
                 if (state.isTracking && !state.isPaused && !state.isAutoPaused) {
                     val newElapsed = state.elapsedSeconds + 1
                     val newPace = PaceCalculator.calculatePaceSecondsPerKm(state.distanceMeters, newElapsed)
+                    val hasValidFix = lastGpsUpdateTimeMs > 0L
+                    val timeSinceLastFixMs = if (hasValidFix) {
+                        (System.currentTimeMillis() - lastGpsUpdateTimeMs).coerceAtLeast(0L)
+                    } else {
+                        Long.MAX_VALUE
+                    }
+                    val signalSummary = gpsSignalScoreTracker.recordActiveTick(
+                        currentQuality = state.gpsQuality,
+                        hasValidFix = hasValidFix,
+                        timeSinceLastFixMs = timeSinceLastFixMs,
+                        isDemoMode = state.isDemoMode
+                    )
                     _walkState.value = state.copy(
                         elapsedSeconds = newElapsed,
-                        currentPaceSecondsPerKm = newPace
+                        currentPaceSecondsPerKm = newPace,
+                        gpsSignalSummary = signalSummary
                     )
                     if (state.ghostPoints.isEmpty()) {
                         checkAndTriggerFreeWalkFeedback(state.distanceMeters, newElapsed, isPaused = false)
@@ -775,7 +790,7 @@ class WalkTrackingService : Service() {
         val now = System.currentTimeMillis()
         val timeSinceLastGps = if (lastGpsUpdateTimeMs > 0L) now - lastGpsUpdateTimeMs else Long.MAX_VALUE
         val isAccuracyDegraded = currentState.currentAccuracyMeters > 35f
-        val isGpsStale = timeSinceLastGps > 4500L
+        val isGpsStale = timeSinceLastGps > GpsSignalScoreTracker.STALE_GPS_THRESHOLD_MS
 
         if (isGpsStale || isAccuracyDegraded) {
             wasInPdrMode = true
@@ -843,6 +858,7 @@ class WalkTrackingService : Service() {
         autoPauseDetector.reset()
         ghostEngine.reset()
         freeWalkCoachEngine.reset()
+        gpsSignalScoreTracker.reset()
         AppLogger.d("WalkTrackingService", "resetTrackingData completed")
     }
 

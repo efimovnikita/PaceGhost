@@ -17,5 +17,6 @@ data class WalkState(
     val recentVibrationMessage: String? = null,
     val recentVoiceMessage: String? = null,
     val gpsQuality: GpsQuality = GpsQuality.GOOD,
-    val currentAccuracyMeters: Float = 0f
+    val currentAccuracyMeters: Float = 0f,
+    val gpsSignalSummary: GpsSignalSummary = GpsSignalSummary()
 )
