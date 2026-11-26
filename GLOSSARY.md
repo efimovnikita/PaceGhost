@@ -71,3 +71,7 @@ _Avoid_: Global telemetry, user totals, all-time summary
 **Stats Peek Sheet**:
 A non-modal bottom sheet on the Personal Heatmap screen that rests collapsed as a centered peek handle and expands via upward swipe or tap to display Lifetime Stats without dimming the map above.
 _Avoid_: Stats drawer, metrics popup, analytics modal
+
+**GPS Signal Score**:
+A session-level 0–100% rating of GPS reception during a walk, weighted across active time spent in good, weak, and dead-reckoning (PDR) signal states, and summarized on the walk completion screen as Good, Fair, or Poor.
+_Avoid_: Average accuracy, fix rate, GPS rating

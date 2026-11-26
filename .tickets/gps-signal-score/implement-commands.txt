@@ -1,0 +1,3 @@
+/implement Тикет: ".tickets/gps-signal-score/01-gps-signal-score-tracer-bullet.md". Контекст: "docs/specs/gps-signal-score.md"
+/implement Тикет: ".tickets/gps-signal-score/02-emulator-visual-verification.md". Контекст: "docs/specs/gps-signal-score.md"
+/implement Тикет: ".tickets/gps-signal-score/03-release-version-bump-and-publish.md". Контекст: "docs/specs/gps-signal-score.md"
