@@ -4,12 +4,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
@@ -17,17 +19,17 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -203,14 +205,15 @@ fun WalkCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Challenge Ghost button (prominent primary action with running icon only)
-                FilledIconButton(
+                // Challenge Ghost button (prominent primary action)
+                Button(
                     onClick = { onChallengeGhost(walk.id) },
                     modifier = Modifier
                         .weight(1f)
                         .height(42.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = CyanGhost,
                         contentColor = Color.Black
                     )
@@ -218,19 +221,28 @@ fun WalkCard(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.DirectionsRun,
                         contentDescription = "Walk with Ghost",
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Walk with Ghost",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
                 // View track on map button
-                OutlinedIconButton(
+                OutlinedButton(
                     onClick = { onPreviewTrack(walk.id) },
                     modifier = Modifier
                         .weight(1f)
                         .height(42.dp),
                     shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
                     border = BorderStroke(1.dp, CyanGhost.copy(alpha = 0.5f)),
-                    colors = IconButtonDefaults.outlinedIconButtonColors(
+                    colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = CyanGhost
                     )
                 ) {
@@ -238,7 +250,15 @@ fun WalkCard(
                         imageVector = Icons.Filled.Map,
                         contentDescription = "View track on map",
                         tint = CyanGhost,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "View Track",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
