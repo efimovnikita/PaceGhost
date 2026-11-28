@@ -206,7 +206,9 @@ fun WalkCard(
                 // Challenge Ghost button (prominent primary action with running icon only)
                 FilledIconButton(
                     onClick = { onChallengeGhost(walk.id) },
-                    modifier = Modifier.size(42.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = CyanGhost,
@@ -223,7 +225,9 @@ fun WalkCard(
                 // View track on map button
                 OutlinedIconButton(
                     onClick = { onPreviewTrack(walk.id) },
-                    modifier = Modifier.size(42.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, CyanGhost.copy(alpha = 0.5f)),
                     colors = IconButtonDefaults.outlinedIconButtonColors(
