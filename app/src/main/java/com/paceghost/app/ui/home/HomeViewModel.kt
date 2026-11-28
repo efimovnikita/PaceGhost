@@ -3,6 +3,7 @@ package com.paceghost.app.ui.home
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.paceghost.app.BuildConfig
 import com.paceghost.app.data.gpx.GpxExporter
 import com.paceghost.app.data.local.AppDatabase
 import com.paceghost.app.data.local.VoiceSettingsPreferences
@@ -22,9 +23,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class HomeViewModel(application: Application) : AndroidViewModel(application) {
+class HomeViewModel @JvmOverloads constructor(
+    application: Application,
+    private val isDebugBuild: Boolean = BuildConfig.DEBUG,
+    private val repositoryOverride: WalkRepository? = null,
+    private val populateDemoWalkAction: suspend () -> Unit = {
+        val db = AppDatabase.getInstance(application)
+        AppDatabase.populateDemoWalk(db)
+    }
+) : AndroidViewModel(application) {
 
-    private val repository: WalkRepository = WalkRepositoryImpl(
+    private val repository: WalkRepository = repositoryOverride ?: WalkRepositoryImpl(
         application,
         AppDatabase.getInstance(application, viewModelScope).walkDao()
     )
@@ -47,11 +56,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val userMessage = _userMessage.asSharedFlow()
 
     fun setDemoMode(enabled: Boolean) {
+        if (!isDebugBuild && enabled) return
         _isDemoMode.value = enabled
         if (enabled) {
             viewModelScope.launch {
-                val db = AppDatabase.getInstance(getApplication())
-                AppDatabase.populateDemoWalk(db)
+                populateDemoWalkAction()
                 repository.clearHeatmapCache()
             }
         }

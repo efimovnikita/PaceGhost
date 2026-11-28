@@ -5,8 +5,11 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,13 +30,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Settings
 import androidx.core.content.FileProvider
+import com.paceghost.app.BuildConfig
 import com.paceghost.app.util.AppLogger
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,9 +49,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -69,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.paceghost.app.data.local.entity.WalkEntity
 import com.paceghost.app.ui.home.components.DeleteWalkConfirmationDialog
+import com.paceghost.app.ui.home.components.DeveloperToolsDialog
 import com.paceghost.app.ui.home.components.VoiceSettingsDialog
 import com.paceghost.app.ui.home.components.WalkCard
 import com.paceghost.app.ui.theme.CyanGhost
@@ -80,13 +83,14 @@ import com.paceghost.app.ui.theme.TextPrimary
 import com.paceghost.app.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     onStartWalk: (ghostWalkId: Long, isDemo: Boolean) -> Unit,
     onPreviewTrack: (Long) -> Unit = {},
     onOpenHeatmap: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
+    isDebugBuild: Boolean = BuildConfig.DEBUG,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -95,9 +99,44 @@ fun HomeScreen(
 
     val walks by viewModel.walks.collectAsState()
     val isDemoMode by viewModel.isDemoMode.collectAsState()
+    val effectiveDemoMode = isDebugBuild && isDemoMode
     val voiceSettings by viewModel.voiceSettings.collectAsState()
     var showVoiceSettingsDialog by remember { mutableStateOf(false) }
+    var showDeveloperToolsDialog by remember { mutableStateOf(false) }
     var walkPendingDelete by remember { mutableStateOf<WalkEntity?>(null) }
+
+    val exportDebugLogs = {
+        val logFile = AppLogger.getLogFile(context)
+        if (logFile == null || logFile.length() == 0L) {
+            scope.launch {
+                snackbarHostState.showSnackbar("Log file is empty or not created yet")
+            }
+            Unit
+        } else {
+            try {
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    logFile
+                )
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_SUBJECT, "PaceGhost Debug Log")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                val chooser = Intent.createChooser(shareIntent, "Export PaceGhost Logs").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(chooser)
+            } catch (e: Exception) {
+                AppLogger.e("HomeScreen", "Failed to export logs", e)
+                scope.launch {
+                    snackbarHostState.showSnackbar("Failed to export logs: ${e.message}")
+                }
+            }
+        }
+    }
 
     // Observe user message notifications
     LaunchedEffect(Unit) {
@@ -133,7 +172,14 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = { showDeveloperToolsDialog = true }
+                            )
+                            .padding(vertical = 4.dp, horizontal = 2.dp)
                     ) {
                         Text(
                             text = "Pace",
@@ -158,33 +204,6 @@ fun HomeScreen(
                     }
                 },
                 actions = {
-                    // Compact Demo Mode Toggle Chip
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (isDemoMode) CyanGhost.copy(alpha = 0.25f) else DarkSurfaceVariant)
-                            .clickable { viewModel.setDemoMode(!isDemoMode) }
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Science,
-                            contentDescription = "Demo Mode",
-                            tint = if (isDemoMode) CyanGhost else TextSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isDemoMode) "DEMO" else "Demo",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = if (isDemoMode) FontWeight.Bold else FontWeight.Medium
-                            ),
-                            color = if (isDemoMode) CyanGhost else TextSecondary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
                     // Personal Heatmap Button
                     IconButton(
                         onClick = onOpenHeatmap,
@@ -223,49 +242,6 @@ fun HomeScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-
-                    // Export Logs Button
-                    IconButton(
-                        onClick = {
-                            val logFile = AppLogger.getLogFile(context)
-                            if (logFile == null || logFile.length() == 0L) {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Log file is empty or not created yet")
-                                }
-                            } else {
-                                try {
-                                    val uri = FileProvider.getUriForFile(
-                                        context,
-                                        "${context.packageName}.fileprovider",
-                                        logFile
-                                    )
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_STREAM, uri)
-                                        putExtra(Intent.EXTRA_SUBJECT, "PaceGhost Debug Log")
-                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    }
-                                    val chooser = Intent.createChooser(shareIntent, "Export PaceGhost Logs").apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                    context.startActivity(chooser)
-                                } catch (e: Exception) {
-                                    AppLogger.e("HomeScreen", "Failed to export logs", e)
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Failed to export logs: ${e.message}")
-                                    }
-                                }
-                            }
-                        },
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.BugReport,
-                            contentDescription = "Export Logs",
-                            tint = CyanGhost,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = DarkBackground
@@ -282,7 +258,7 @@ fun HomeScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Button(
-                    onClick = { onStartWalk(-1L, isDemoMode) },
+                    onClick = { onStartWalk(-1L, effectiveDemoMode) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(58.dp),
@@ -300,7 +276,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isDemoMode) "New Walk (Demo)" else "New Walk",
+                        text = if (effectiveDemoMode) "New Walk (Demo)" else "New Walk",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 17.sp
@@ -310,38 +286,49 @@ fun HomeScreen(
             }
         }
     ) { innerPadding ->
-        if (walks.isEmpty()) {
-            EmptyWalksView(
-                isDemoMode = isDemoMode,
-                onStart = { onStartWalk(-1L, isDemoMode) },
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                item {
-                    Text(
-                        text = "Saved Routes",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp
-                        ),
-                        color = TextSecondary,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                    )
-                }
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+        ) {
+            if (effectiveDemoMode) {
+                DemoModeBanner(
+                    onExitDemo = { viewModel.setDemoMode(false) }
+                )
+            }
 
-                items(walks, key = { it.id }) { walk ->
-                    WalkCard(
-                        walk = walk,
-                        onChallengeGhost = { id -> onStartWalk(id, isDemoMode) },
+            if (walks.isEmpty()) {
+                EmptyWalksView(
+                    isDemoMode = effectiveDemoMode,
+                    onStart = { onStartWalk(-1L, effectiveDemoMode) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    item {
+                        Text(
+                            text = "Saved Routes",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp
+                            ),
+                            color = TextSecondary,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                        )
+                    }
+
+                    items(walks, key = { it.id }) { walk ->
+                        WalkCard(
+                            walk = walk,
+                            onChallengeGhost = { id -> onStartWalk(id, effectiveDemoMode) },
                         onPreviewTrack = onPreviewTrack,
                         onExportGpx = { id ->
                             scope.launch {
@@ -383,9 +370,24 @@ fun HomeScreen(
                             }
                         },
                         onDelete = { walkPendingDelete = walk }
-                    )
+                        )
+                    }
                 }
             }
+        }
+
+        if (showDeveloperToolsDialog) {
+            DeveloperToolsDialog(
+                isDebugBuild = isDebugBuild,
+                isDemoMode = isDemoMode,
+                versionLabel = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                onToggleDemoMode = { viewModel.setDemoMode(it) },
+                onExportLogs = {
+                    showDeveloperToolsDialog = false
+                    exportDebugLogs()
+                },
+                onDismiss = { showDeveloperToolsDialog = false }
+            )
         }
 
         if (showVoiceSettingsDialog) {
@@ -414,13 +416,56 @@ fun HomeScreen(
 }
 
 @Composable
+private fun DemoModeBanner(
+    onExitDemo: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(DarkSurfaceVariant)
+            .padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Science,
+            contentDescription = null,
+            tint = CyanGhost,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "Demo Mode Active",
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = FontWeight.SemiBold
+            ),
+            color = TextPrimary,
+            modifier = Modifier.weight(1f)
+        )
+        TextButton(onClick = onExitDemo) {
+            Text(
+                text = "Exit Demo",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = CyanGhost
+            )
+        }
+    }
+}
+
+@Composable
 private fun EmptyWalksView(
     isDemoMode: Boolean,
     onStart: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier.padding(24.dp),
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         Card(
