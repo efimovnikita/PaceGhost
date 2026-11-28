@@ -31,7 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.FileOpen
-import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Settings
@@ -210,7 +210,7 @@ fun HomeScreen(
                         modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Layers,
+                            imageVector = Icons.Filled.Map,
                             contentDescription = "Personal Heatmap",
                             tint = CyanGhost,
                             modifier = Modifier.size(20.dp)

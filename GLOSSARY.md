@@ -75,3 +75,7 @@ _Avoid_: Stats drawer, metrics popup, analytics modal
 **GPS Signal Score**:
 A session-level 0–100% rating of GPS reception during a walk, weighted across active time spent in good, weak, and dead-reckoning (PDR) signal states, and summarized on the walk completion screen as Good, Fair, or Poor.
 _Avoid_: Average accuracy, fix rate, GPS rating
+
+**Demo Mode**:
+A debug-only walking simulation mode that replays synthetic GPS routes and exposes live speed and off-route controls for testing without outdoor GPS reception.
+_Avoid_: Test mode, mock walk, emulator mode

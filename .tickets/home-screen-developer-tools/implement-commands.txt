@@ -1,0 +1,3 @@
+/implement Тикет: ".tickets/home-screen-developer-tools/01-home-screen-cleanup-and-developer-tools.md". Контекст: "docs/specs/home-screen-developer-tools.md"
+/implement Тикет: ".tickets/home-screen-developer-tools/02-emulator-visual-verification.md". Контекст: "docs/specs/home-screen-developer-tools.md"
+/implement Тикет: ".tickets/home-screen-developer-tools/03-release-version-bump-and-publish.md". Контекст: "docs/specs/home-screen-developer-tools.md"
