@@ -2,35 +2,38 @@ package com.paceghost.app.ui.home.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,10 +63,8 @@ fun WalkCard(
     onPreviewTrack: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val formattedDate = remember(walk.startTime) {
-        val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
-        sdf.format(Date(walk.startTime))
-    }
+    val formattedDate = remember(walk.startTime) { formatWalkDate(walk.startTime) }
+    var menuExpanded by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -76,29 +77,91 @@ fun WalkCard(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-            // Header: Title & Date
+            // Header: Title + Date on the left, Overflow Menu on the right
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Text(
-                    text = walk.title,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp
-                    ),
-                    color = TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                Column(
                     modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = formattedDate,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary
-                )
+                ) {
+                    Text(
+                        text = walk.title,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp
+                        ),
+                        color = TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = formattedDate,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                }
+
+                Box {
+                    IconButton(
+                        onClick = { menuExpanded = true }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = "More options",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        containerColor = DarkSurfaceVariant
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Export GPX",
+                                    color = TextPrimary
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Share,
+                                    contentDescription = null,
+                                    tint = TextPrimary
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onExportGpx(walk.id)
+                            }
+                        )
+                        HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f))
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Delete",
+                                    color = ErrorRed
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.DeleteOutline,
+                                    contentDescription = null,
+                                    tint = ErrorRed
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete(walk.id)
+                            }
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -137,84 +200,51 @@ fun WalkCard(
             // Action buttons row
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Group of primary/route actions
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Challenge Ghost button (prominent primary action with running icon only)
-                    FilledIconButton(
-                        onClick = { onChallengeGhost(walk.id) },
-                        modifier = Modifier.size(42.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = CyanGhost,
-                            contentColor = Color.Black
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.DirectionsRun,
-                            contentDescription = "Walk with Ghost",
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    // View track on map button
-                    OutlinedIconButton(
-                        onClick = { onPreviewTrack(walk.id) },
-                        modifier = Modifier.size(42.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, CyanGhost.copy(alpha = 0.5f)),
-                        colors = IconButtonDefaults.outlinedIconButtonColors(
-                            contentColor = CyanGhost
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Map,
-                            contentDescription = "View track on map",
-                            tint = CyanGhost,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    // GPX Export button
-                    OutlinedIconButton(
-                        onClick = { onExportGpx(walk.id) },
-                        modifier = Modifier.size(42.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, DarkSurfaceVariant),
-                        colors = IconButtonDefaults.outlinedIconButtonColors(
-                            contentColor = TextPrimary
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Share,
-                            contentDescription = "Export GPX",
-                            tint = TextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Delete button (separated on the far right)
-                IconButton(
-                    onClick = { onDelete(walk.id) },
+                // Challenge Ghost button (prominent primary action with running icon only)
+                FilledIconButton(
+                    onClick = { onChallengeGhost(walk.id) },
                     modifier = Modifier.size(42.dp),
-                    colors = IconButtonDefaults.iconButtonColors(contentColor = ErrorRed.copy(alpha = 0.8f))
+                    shape = RoundedCornerShape(12.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = CyanGhost,
+                        contentColor = Color.Black
+                    )
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.DeleteOutline,
-                        contentDescription = "Delete walk",
+                        imageVector = Icons.AutoMirrored.Filled.DirectionsRun,
+                        contentDescription = "Walk with Ghost",
                         modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // View track on map button
+                OutlinedIconButton(
+                    onClick = { onPreviewTrack(walk.id) },
+                    modifier = Modifier.size(42.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, CyanGhost.copy(alpha = 0.5f)),
+                    colors = IconButtonDefaults.outlinedIconButtonColors(
+                        contentColor = CyanGhost
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Map,
+                        contentDescription = "View track on map",
+                        tint = CyanGhost,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
         }
     }
+}
+
+internal fun formatWalkDate(timestampMs: Long): String {
+    val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.US)
+    return sdf.format(Date(timestampMs))
 }
 
 @Composable

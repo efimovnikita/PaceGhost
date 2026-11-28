@@ -67,6 +67,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.paceghost.app.data.local.entity.WalkEntity
+import com.paceghost.app.ui.home.components.DeleteWalkConfirmationDialog
 import com.paceghost.app.ui.home.components.VoiceSettingsDialog
 import com.paceghost.app.ui.home.components.WalkCard
 import com.paceghost.app.ui.theme.CyanGhost
@@ -95,6 +97,7 @@ fun HomeScreen(
     val isDemoMode by viewModel.isDemoMode.collectAsState()
     val voiceSettings by viewModel.voiceSettings.collectAsState()
     var showVoiceSettingsDialog by remember { mutableStateOf(false) }
+    var walkPendingDelete by remember { mutableStateOf<WalkEntity?>(null) }
 
     // Observe user message notifications
     LaunchedEffect(Unit) {
@@ -379,7 +382,7 @@ fun HomeScreen(
                                 }
                             }
                         },
-                        onDelete = { id -> viewModel.deleteWalk(id) }
+                        onDelete = { walkPendingDelete = walk }
                     )
                 }
             }
@@ -394,6 +397,17 @@ fun HomeScreen(
                     showVoiceSettingsDialog = false
                 },
                 onDismiss = { showVoiceSettingsDialog = false }
+            )
+        }
+
+        walkPendingDelete?.let { pendingWalk ->
+            DeleteWalkConfirmationDialog(
+                walk = pendingWalk,
+                onConfirm = {
+                    viewModel.deleteWalk(pendingWalk.id)
+                    walkPendingDelete = null
+                },
+                onDismiss = { walkPendingDelete = null }
             )
         }
     }
